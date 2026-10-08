@@ -1,0 +1,117 @@
+// Passerby database. Change this file, then run `npm run db:migrate` to create a migration.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// A visitor who chose to make an account. Chatting never needs one.
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  displayName  String
+  /// argon2id hash. The password itself is never stored.
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  lastLoginAt  DateTime?
+  loginCount   Int       @default(0)
+  premiumUntil DateTime?
+  /// Set when a moderator suspends the account.
+  disabledAt   DateTime?
+  /// Scrambled ID of the address that signed up. Never a raw IP address.
+  signupRef    String
+
+  passes PassClaim[]
+
+  @@map("users")
+}
+
+/// A paid premium pass, keyed by the Stripe checkout session so it can only be claimed once.
+model PassClaim {
+  sessionId String   @id
+  until     DateTime
+  userId    String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("pass_claims")
+}
+
+/// A banned visitor, identified by the scrambled ID of their address.
+model Ban {
+  visitor   String   @id
+  until     DateTime
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@index([until])
+  @@map("bans")
+}
+
+enum ReportStatus {
+  open
+  banned
+  dismissed
+}
+
+/// Someone reported a chat. The last messages are kept here so a moderator can review them.
+model Report {
+  id         String       @id @default(cuid())
+  createdAt  DateTime     @default(now())
+  mode       String
+  reason     String
+  /// "system" for automatic reports, otherwise the reporter's scrambled ID.
+  reporter   String
+  reported   String
+  status     ReportStatus @default(open)
+  transcript Json         @default("[]")
+
+  @@index([status, createdAt])
+  @@index([reported, createdAt])
+  @@map("reports")
+}
+
+enum EventKind {
+  user
+  admin
+  system
+}
+
+/// The activity and system log. Message text, passwords, emails and raw IP addresses never go here.
+model Event {
+  id      BigInt    @id @default(autoincrement())
+  at      DateTime  @default(now())
+  kind    EventKind
+  type    String
+  /// Short scrambled visitor ID, or empty.
+  visitor String    @default("")
+  detail  String    @default("")
+
+  @@index([at])
+  @@index([kind, at])
+  @@map("events")
+}
+
+/// Hour-by-hour counters for the admin dashboard.
+model HourlyStat {
+  hour        DateTime @id
+  visitors    Int      @default(0)
+  chats       Int      @default(0)
+  videoChats  Int      @default(0)
+  messages    Int      @default(0)
+  reports     Int      @default(0)
+  signups     Int      @default(0)
+  passes      Int      @default(0)
+  bans        Int      @default(0)
+  chatsEnded  Int      @default(0)
+  chatSeconds Int      @default(0)
+  peakOnline  Int      @default(0)
+
+  @@map("hourly_stats")
+}

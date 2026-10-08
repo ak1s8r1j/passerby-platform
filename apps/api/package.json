@@ -1,0 +1,45 @@
+{
+  "name": "@passerby/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --import tsx --env-file-if-exists=../../.env src/index.ts",
+    "build": "prisma generate && tsup",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "db:embedded": "tsx scripts/dev-db.ts",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@passerby/shared": "*",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "dotenv": "^17.0.0",
+    "express": "^5.2.0",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "pg": "^8.23.0",
+    "pino": "^10.4.0",
+    "prisma": "^7.10.0",
+    "ws": "^8.22.0",
+    "zod": "^4.6.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.20.0",
+    "@types/pg": "^8.23.0",
+    "@types/supertest": "^6.0.0",
+    "@types/ws": "^8.18.0",
+    "embedded-postgres": "17.10.0-beta.17",
+    "supertest": "^7.3.0",
+    "tsup": "^8.5.0",
+    "tsx": "^4.23.0",
+    "vitest": "^3.2.0"
+  }
+}
