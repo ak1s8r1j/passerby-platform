@@ -19,6 +19,7 @@ const hub = createHub({
   reports: prismaReports(db),
   visitorOf: (address) => visitorId(address, config.SESSION_SECRET),
   allowedOrigins: [config.PUBLIC_URL],
+  videoEnabled: config.VIDEO_ENABLED,
 });
 const app = createApp({ config, logger, health: dbHealth(db), online: hub.online });
 server.on("request", app);

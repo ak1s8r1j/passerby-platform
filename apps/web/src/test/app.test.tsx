@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App.js";
 import { FakeSocket, installFakeSocket } from "./fake-socket.js";
+import { stubApi } from "./fetch.js";
 
 const renderAt = (path: string) =>
   render(
@@ -13,10 +14,7 @@ const renderAt = (path: string) =>
 
 beforeEach(() => {
   localStorage.clear();
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => new Response(JSON.stringify({ online: 3 }), { status: 200 })),
-  );
+  stubApi();
   installFakeSocket();
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -42,6 +40,22 @@ describe("home page", () => {
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
     await new Promise((r) => setTimeout(r, 20));
     expect(screen.queryByText(/here now/)).not.toBeInTheDocument();
+  });
+
+  it("offers video chat, and says so, when the server has video on", async () => {
+    renderAt("/");
+    expect(screen.getByRole("link", { name: /start video chat/i })).toBeInTheDocument();
+    expect(screen.getByText(/text or video chat/i)).toBeInTheDocument();
+  });
+
+  it("stops offering video chat when the server has switched it off", async () => {
+    stubApi({ config: { video: false, iceServers: [] } });
+    renderAt("/");
+    await waitFor(() =>
+      expect(screen.queryByRole("link", { name: /start video chat/i })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("link", { name: /start text chat/i })).toBeInTheDocument();
+    expect(screen.getByText(/for a text chat/i)).toBeInTheDocument();
   });
 
   it("opens no chat connection just for looking at the home page", async () => {

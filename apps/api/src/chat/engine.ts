@@ -5,6 +5,7 @@ import {
   type ChatMode,
   type ClientMessage,
   type ServerMessage,
+  type Signal,
 } from "@passerby/shared";
 import { statedMinorAge } from "./age.js";
 import { bestPartner, FALLBACK_MS, sharedTags, type Seeker } from "./matching.js";
@@ -17,6 +18,8 @@ export const FLOOD_WINDOW_MS = 3000;
 /** How many recent messages are kept so a moderator can see what happened. */
 export const LOG_KEEP = 40;
 export const AGE_BAN_HOURS = 24;
+/** A video chat needs a few dozen setup messages. This many is plenty; more is someone abusing the channel. */
+export const MAX_SIGNALS = 300;
 
 // ---- what the engine needs from outside ----
 
@@ -56,6 +59,8 @@ export interface EngineDeps {
   /** Called when someone arrives or leaves, so the live count can be pushed out. */
   onPresence?: () => void;
   onError?: (err: unknown, what: string) => void;
+  /** When false, everyone is treated as a text chatter, even if they ask for video. Default true. */
+  videoEnabled?: boolean;
 }
 
 // ---- state ----
@@ -65,6 +70,8 @@ type State = "new" | "idle" | "cooldown" | "searching" | "chatting";
 interface Chat {
   startedAt: number;
   messages: number;
+  /** Video setup messages relayed so far in this chat. */
+  signals: number;
   log: { from: string; x: string }[];
 }
 
@@ -151,6 +158,8 @@ export class ChatEngine {
       case "typing":
         if (s.partner) this.send(s.partner, { t: "typing" });
         return;
+      case "sig":
+        return this.signal(s, msg.d);
     }
   }
 
@@ -173,7 +182,7 @@ export class ChatEngine {
     if (!this.sessions.has(s.id)) return; // they left while we checked
     this.leave(s);
     const first = s.state === "new";
-    s.mode = msg.mode;
+    s.mode = msg.mode === "video" && this.deps.videoEnabled !== false ? "video" : "text";
     s.tags = cleanTags(msg.tags);
     s.lang = msg.lang ?? "";
     s.gender = msg.gender ?? "";
@@ -237,6 +246,16 @@ export class ChatEngine {
     this.send(partner, { t: "msg", text });
   }
 
+  /** Pass a video setup message to the other person. Only between two video chatters, only in a chat. */
+  private signal(s: Session, d: Signal): void {
+    const partner = s.partner;
+    if (s.state !== "chatting" || !partner || !s.chat) return;
+    if (s.mode !== "video" || partner.mode !== "video") return;
+    if (s.chat.signals >= MAX_SIGNALS) return;
+    s.chat.signals++;
+    this.send(partner, { t: "sig", d });
+  }
+
   // ---- matching ----
 
   private enqueue(s: Session): void {
@@ -263,7 +282,7 @@ export class ChatEngine {
   private pair(a: Session, b: Session): void {
     this.dequeue(a);
     this.dequeue(b);
-    const chat: Chat = { startedAt: Date.now(), messages: 0, log: [] };
+    const chat: Chat = { startedAt: Date.now(), messages: 0, signals: 0, log: [] };
     a.partner = b;
     b.partner = a;
     a.chat = b.chat = chat;

@@ -3,8 +3,8 @@ import { join, resolve } from "node:path";
 import express, { type ErrorRequestHandler, type Express } from "express";
 import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
-import type { ErrorResponse, HealthResponse, StatsResponse } from "@passerby/shared";
-import type { Config } from "./config.js";
+import type { ErrorResponse, HealthResponse, SiteConfig, StatsResponse } from "@passerby/shared";
+import { iceServers, type Config } from "./config.js";
 import type { Health } from "./db.js";
 import type { Logger } from "./logger.js";
 
@@ -65,6 +65,10 @@ export function createApp({ config, logger, health, online }: AppDeps): Express 
   );
   api.get("/stats", (_req, res) => {
     const body: StatsResponse = { online: online() };
+    res.json(body);
+  });
+  api.get("/config", (_req, res) => {
+    const body: SiteConfig = { video: config.VIDEO_ENABLED, iceServers: iceServers(config) };
     res.json(body);
   });
   api.use((_req, res) => {

@@ -36,6 +36,40 @@ describe("GET /api/v1/stats", () => {
   });
 });
 
+describe("GET /api/v1/config", () => {
+  const withConfig = (over: Record<string, string>) =>
+    createApp({
+      config: testConfig(over),
+      logger: silent,
+      health: { ping: async () => true },
+      online: () => 0,
+    });
+
+  it("says video is on and offers the free STUN server by default", async () => {
+    const res = await request(make(true)).get("/api/v1/config");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      video: true,
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    });
+  });
+
+  it("adds the relay server, with its login, when one is set", async () => {
+    const res = await request(
+      withConfig({ TURN_URL: "turn:relay.example:3478", TURN_USER: "u", TURN_PASS: "p" }),
+    ).get("/api/v1/config");
+    expect(res.body.iceServers).toEqual([
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "turn:relay.example:3478", username: "u", credential: "p" },
+    ]);
+  });
+
+  it("says video is off when it has been switched off", async () => {
+    const res = await request(withConfig({ VIDEO_ENABLED: "false" })).get("/api/v1/config");
+    expect(res.body.video).toBe(false);
+  });
+});
+
 describe("errors and headers", () => {
   it("answers unknown API routes with a JSON 404", async () => {
     const res = await request(make(true)).get("/api/v1/nope");

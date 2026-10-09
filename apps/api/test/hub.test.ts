@@ -109,6 +109,67 @@ describe("websocket hub", () => {
   });
 });
 
+describe("video through real sockets", () => {
+  const person = async (address: string, mode: "text" | "video") => {
+    const c = connect({ "x-forwarded-for": address });
+    await c.opened;
+    c.send({ t: "hello", adult: true, mode });
+    await c.next("ready");
+    c.send({ t: "find" });
+    return c;
+  };
+  const SDP = "v=0\r\no=- 1 1 IN IP4 0.0.0.0";
+
+  it("carries an offer, an answer and candidates between two video people", async () => {
+    const a = await person("10.1.0.1", "video"),
+      b = await person("10.1.0.2", "video");
+    await a.next("matched");
+    await b.next("matched");
+    a.send({ t: "sig", d: { s: { type: "offer", sdp: SDP } } });
+    expect((await b.next("sig"))?.d).toEqual({ s: { type: "offer", sdp: SDP } });
+    b.send({ t: "sig", d: { s: { type: "answer", sdp: "v=0" } } });
+    expect(await a.next("sig")).not.toBeNull();
+    a.send({
+      t: "sig",
+      d: {
+        c: { candidate: "candidate:1 1 udp 1 1.2.3.4 5 typ host", sdpMid: "0", sdpMLineIndex: 0 },
+      },
+    });
+    const got = (await b.next("sig"))?.d as { c: { candidate: string } };
+    expect(got.c.candidate).toContain("candidate:1");
+  });
+
+  it("strips anything extra before passing it on", async () => {
+    const a = await person("10.1.1.1", "video"),
+      b = await person("10.1.1.2", "video");
+    await a.next("matched");
+    await b.next("matched");
+    a.send({ t: "sig", d: { s: { type: "offer", sdp: "v=0", smuggled: "hello" } } });
+    expect((await b.next("sig"))?.d).toEqual({ s: { type: "offer", sdp: "v=0" } });
+  });
+
+  it("answers a malformed setup message with an error and keeps the connection", async () => {
+    const a = await person("10.1.2.1", "video"),
+      b = await person("10.1.2.2", "video");
+    await a.next("matched");
+    await b.next("matched");
+    a.send({ t: "sig", d: { s: { type: "offer", sdp: "x".repeat(40_000) } } });
+    expect((await a.next("error"))?.code).toBe("invalid_message");
+    expect(await b.next("sig", 300)).toBeNull();
+    a.send({ t: "msg", text: "still here" });
+    expect((await b.next("msg"))?.text).toBe("still here");
+  });
+
+  it("never passes setup messages to a text chatter", async () => {
+    const t1 = await person("10.1.3.1", "text"),
+      t2 = await person("10.1.3.2", "text");
+    await t1.next("matched");
+    await t2.next("matched");
+    t1.send({ t: "sig", d: { s: { type: "offer", sdp: "v=0" } } });
+    expect(await t2.next("sig", 300)).toBeNull();
+  });
+});
+
 describe("chatting through real sockets", () => {
   const person = async (address: string) => {
     const c = connect({ "x-forwarded-for": address });

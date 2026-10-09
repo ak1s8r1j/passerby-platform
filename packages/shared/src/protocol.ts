@@ -42,6 +42,33 @@ export const MAX_TAGS = 8;
 export const MAX_TAG_LENGTH = 24;
 export const MAX_MESSAGE_LENGTH = 1000;
 
+/** Longest session description (a WebRTC offer or answer) we will relay. Real ones are about 5 to 12 KB. */
+export const MAX_SDP_LENGTH = 30_000;
+
+/**
+ * The setup messages two browsers swap to connect their video directly (WebRTC).
+ * The server only carries them between the two people in a video chat and never reads them.
+ * Anything that is not exactly one of these shapes is dropped, and unknown fields are stripped,
+ * so this channel cannot be used to send anything else.
+ */
+export const SessionDescription = z.object({
+  type: z.enum(["offer", "answer"]),
+  sdp: z.string().max(MAX_SDP_LENGTH),
+});
+export type SessionDescription = z.infer<typeof SessionDescription>;
+
+export const IceCandidate = z.object({
+  candidate: z.string().max(2000),
+  sdpMid: z.string().max(100).nullable().optional(),
+  sdpMLineIndex: z.number().int().min(0).max(255).nullable().optional(),
+  usernameFragment: z.string().max(100).nullable().optional(),
+});
+export type IceCandidate = z.infer<typeof IceCandidate>;
+
+/** `s` carries a session description, `c` carries an ICE candidate. */
+export const Signal = z.union([z.object({ s: SessionDescription }), z.object({ c: IceCandidate })]);
+export type Signal = z.infer<typeof Signal>;
+
 /** Messages the browser sends. */
 export const ClientMessage = z.discriminatedUnion("t", [
   z.object({ t: z.literal("ping") }),
@@ -63,6 +90,8 @@ export const ClientMessage = z.discriminatedUnion("t", [
   z.object({ t: z.literal("stop") }),
   z.object({ t: z.literal("msg"), text: z.string() }),
   z.object({ t: z.literal("typing") }),
+  /** Video setup for the other person. Only relayed in a video chat. */
+  z.object({ t: z.literal("sig"), d: Signal }),
 ]);
 export type ClientMessage = z.infer<typeof ClientMessage>;
 
@@ -82,6 +111,8 @@ export const ServerMessage = z.discriminatedUnion("t", [
   z.object({ t: z.literal("matched"), common: z.array(z.string()), init: z.boolean() }),
   z.object({ t: z.literal("msg"), text: z.string() }),
   z.object({ t: z.literal("typing") }),
+  /** Video setup from the other person. */
+  z.object({ t: z.literal("sig"), d: Signal }),
   /** The other person left. */
   z.object({ t: z.literal("ended") }),
   z.object({ t: z.literal("banned"), until: z.number(), reason: BanReason }),

@@ -5,6 +5,7 @@ The repo today is the **foundation**: a working web app, API, database and WebSo
 ## What exists now
 
 - **Text chat (phase 1, done):** interests, language and gender choice; matching with a four-second fallback; no instant rematch; skip cool-down; messages, typing, Next and Stop; flood limits; automatic removal (24 hours, with a report for moderators) when someone says they are under 18; bans kept in Postgres; the chat page reconnects by itself
+- **Video chat (phase 2, done):** camera and microphone only after Start; a direct browser-to-browser call set up through the server (offer, answer and candidates, strictly validated and only relayed between two video partners); mute and camera-off buttons; Next closes the call, Stop turns the camera off; a blocked camera is explained; `VIDEO_ENABLED` and `TURN_*` settings; the home page hides video when it is off
 - Home page, 18+ gate, live "people here now" count (the header and the chat connection show the same number)
 - Shared protocol and API types, validated on both sides
 - Database schema and first migration (users, passes, bans, reports, events, hourly stats)
@@ -16,7 +17,7 @@ The repo today is the **foundation**: a working web app, API, database and WebSo
 | #   | Phase                             | Delivers                                                                                                                                                           |
 | --- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 1   | **Matching and text chat** (done) | Queue, interest matching, 4-second fallback, messages, typing, Next/Stop, flood limits, the under-18 filter. Ported from the original app; its rules are now tests |
-| 2   | **Video**                         | WebRTC signalling over the socket, camera/mic controls, TURN setting                                                                                               |
+| 2   | **Video** (done)                  | WebRTC signalling over the socket, camera/mic controls, TURN setting                                                                                               |
 | 3   | **Accounts**                      | Register, sign in, sign out, change password, export and delete my data. argon2id, cookie sessions, rate limits                                                    |
 | 4   | **Moderation and admin**          | Reports with transcripts, automatic pauses, bans, admin sign-in, dashboard (live, activity log, users, bans, system), CSV export                                   |
 | 5   | **Premium**                       | Stripe Checkout, pass claims saved to accounts, filters by gender, interest and language                                                                           |

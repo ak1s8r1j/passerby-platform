@@ -42,7 +42,9 @@ export type Action =
   /** The connection to the server dropped. */
   | { type: "dropped" }
   /** The "stranger is typing" notice timed out. */
-  | { type: "typingOff" };
+  | { type: "typingOff" }
+  /** Something to tell the visitor in the conversation (for example, the camera was blocked). */
+  | { type: "notice"; text: string };
 
 const add = (s: ChatState, kind: Line["kind"], text: string): ChatState => ({
   ...s,
@@ -71,6 +73,9 @@ export function chatReducer(s: ChatState, a: Action): ChatState {
 
     case "sent":
       return s.phase === "chatting" ? add(s, "me", a.text) : s;
+
+    case "notice":
+      return add(s, "sys", a.text);
 
     case "typingOff":
       return s.typing ? { ...s, typing: false } : s;
@@ -138,6 +143,7 @@ function onServer(s: ChatState, msg: ServerMessage, now: number, siteName: strin
 
     case "ready":
     case "count":
+    case "sig": // video setup is handled by the video call, not the conversation
       return s;
   }
 }

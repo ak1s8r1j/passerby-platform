@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadConfig } from "../src/config.js";
+import { DEFAULT_STUN, iceServers, loadConfig } from "../src/config.js";
 
 const base = { DATABASE_URL: "postgresql://x", SESSION_SECRET: "a-long-enough-secret" };
 
@@ -30,5 +30,31 @@ describe("loadConfig", () => {
         SESSION_SECRET: "change-me-to-a-long-random-string",
       }),
     ).toThrow(/SESSION_SECRET/);
+  });
+
+  it("treats settings left blank in .env as not set", () => {
+    const c = loadConfig({ ...base, TURN_URL: "", TURN_USER: "", TURN_PASS: "", WEB_DIST: "" });
+    expect(c.TURN_URL).toBeUndefined();
+    expect(c.WEB_DIST).toBeUndefined();
+    expect(iceServers(c)).toEqual([{ urls: DEFAULT_STUN }]);
+  });
+
+  it("has video on unless told otherwise, and accepts only true or false", () => {
+    expect(loadConfig(base).VIDEO_ENABLED).toBe(true);
+    expect(loadConfig({ ...base, VIDEO_ENABLED: "false" }).VIDEO_ENABLED).toBe(false);
+    expect(() => loadConfig({ ...base, VIDEO_ENABLED: "nope" })).toThrow(/VIDEO_ENABLED/);
+  });
+
+  it("adds a relay server after the free one when TURN is set", () => {
+    const c = loadConfig({
+      ...base,
+      TURN_URL: "turn:relay.example:3478",
+      TURN_USER: "u",
+      TURN_PASS: "p",
+    });
+    expect(iceServers(c)).toEqual([
+      { urls: DEFAULT_STUN },
+      { urls: "turn:relay.example:3478", username: "u", credential: "p" },
+    ]);
   });
 });

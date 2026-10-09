@@ -55,7 +55,7 @@ Always stop `npm run dev` with **Ctrl+C**, not by closing the window.
 
 ## Settings
 
-All settings are environment variables, checked once at start-up. A bad or missing one stops the server with a message that names it. See [`.env.example`](.env.example) for the list with explanations. The only required ones are `DATABASE_URL` and `SESSION_SECRET`.
+All settings are environment variables, checked once at start-up. A bad or missing one stops the server with a message that names it. See [`.env.example`](.env.example) for the list with explanations. The only required ones are `DATABASE_URL` and `SESSION_SECRET`. Video has two optional settings: `VIDEO_ENABLED=false` switches video chat off for everyone, and `TURN_URL`, `TURN_USER`, `TURN_PASS` add a relay server so video works on strict networks (the username and password are sent to every visitor, so use an account made only for this).
 
 ## Repo layout
 
@@ -85,16 +85,21 @@ docs/         architecture, roadmap, decisions
 - **Chat rules** (`apps/api/test/engine.test.ts`, `matching.test.ts`, `age.test.ts`): the engine runs with a fake clock and no sockets or database, so every rule is tested in milliseconds: matching, the four-second fallback, no instant rematch, the skip cool-down, flood limits, the under-18 removal with its report and ban.
 - **API:** HTTP behaviour with supertest, the WebSocket hub with real sockets (two clients actually chatting), and the database with a real Postgres. No mocks of Postgres.
 - **Web:** the chat state machine as pure functions, and the pages with Testing Library and a fake WebSocket.
-- **End to end:** `e2e/chat_flow.py` drives real browsers through a whole chat (needs Python + Playwright, and a throwaway database because it files real reports and bans). See the file's header.
+- **Video:** the WebRTC logic is a plain class (`apps/web/src/video/call.ts`) tested with a fake peer connection: who makes the offer, candidates that arrive early, stale connections, failures. The relay rules (video partners only, size and rate limits, extra fields stripped) are tested in the engine and over real sockets.
+- **End to end:** `e2e/chat_flow.py` (text) and `e2e/video_flow.py` (video, with Chromium's fake camera and microphone) drive real browsers through whole chats. They need Python + Playwright. The text one files real bans and reports, so run both against a throwaway database. See each file's header.
 
 ```bash
 npm run dev        # in one terminal, with `npm run db:embedded` running
 BASE_URL=http://localhost:5173 python e2e/chat_flow.py
+BASE_URL=http://localhost:5173 python e2e/video_flow.py
 ```
 
 ## Known limits
 
-- Text chat works end to end. Video, accounts, the admin area, reports from visitors, and payments are on the [roadmap](docs/roadmap.md) in the order they should be built.
+- Text and video chat work end to end. Accounts, the admin area, reports from visitors, and payments are on the [roadmap](docs/roadmap.md) in the order they should be built.
+- Browsers only allow the camera on `https://` pages or `localhost`. Railway gives you https; a plain `http://` address on your network will say the camera is blocked.
+- Without a TURN relay, a small share of video pairs (strict company or mobile networks) cannot connect and see "Video couldn't connect with this person". Add `TURN_*` settings to fix that.
+- Video is direct between the two browsers, which lets each person's IP address be seen by the other. The video page says so.
 - In development every browser on your machine is the same "visitor" (same address), so a ban or an under-18 removal applies to all your tabs. The end-to-end script gives each test browser its own made-up address to avoid this.
 - The web app is a single-page app, so search engines see a thin page until the public pages are pre-rendered (roadmap, phase 7).
 - `npm audit` reports problems in developer tooling (Prisma's local dev server, the test runner). The production path (`pg`, Prisma client, Express, ws) is clean. CI fails only on critical findings in production dependencies.

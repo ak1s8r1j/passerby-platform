@@ -19,6 +19,7 @@ TypeScript monorepo: `apps/web` (React + Vite), `apps/api` (Express 5 + ws + Pri
 - Import local files with a `.js` extension (`./foo.js`), as the existing code does.
 - Chat rules go in `apps/api/src/chat/engine.ts` (no sockets, no database); the socket hub stays a thin adapter. Test rules with the fake-clock helpers in `apps/api/test/chat-helpers.ts`.
 - The chat screen is `apps/web/src/chat/state.ts` (pure reducer) plus `pages/Chat.tsx`; add behaviour to the reducer first.
-- `e2e/chat_flow.py` drives real browsers; it files real bans and reports, so run it only against a throwaway database.
+- Video: WebRTC logic lives in `apps/web/src/video/call.ts` (testable, fake peer in `src/test/fake-media.ts`); relay rules live in the engine (`signal`). Never relay a setup message that has not passed the `Signal` schema in `packages/shared`.
+- `e2e/video_flow.py` needs Chromium's fake camera flags; `e2e/chat_flow.py` drives real browsers; it files real bans and reports, so run it only against a throwaway database.
 - Add tests with each change, including the cases that must be refused.
 - The original single-file app lives in the separate `passerby` repo. Its `tests/protocol.test.ts` and `tests/api.test.ts` describe the behaviour to port in phases 1 to 5 (see `docs/roadmap.md`).

@@ -22,6 +22,8 @@ export interface HubOptions {
   visitorOf(address: string): string;
   /** Browsers may only connect from these origins (plus the server's own host). */
   allowedOrigins: string[];
+  /** Turn video chat off for everyone. Default on. */
+  videoEnabled?: boolean;
   path?: string;
 }
 
@@ -45,6 +47,7 @@ export function createHub({
   reports,
   visitorOf,
   allowedOrigins,
+  videoEnabled = true,
   path = "/ws",
 }: HubOptions): Hub {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
@@ -73,6 +76,7 @@ export function createHub({
     },
     bans,
     reports,
+    videoEnabled,
     onPresence: pushCount,
     onError: (err, what) => logger.error({ err }, what),
   });

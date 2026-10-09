@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App.js";
 import { FakeSocket, installFakeSocket } from "./fake-socket.js";
+import { stubApi } from "./fetch.js";
 
 const renderAt = (path: string) =>
   render(
@@ -14,10 +15,7 @@ const renderAt = (path: string) =>
 
 beforeEach(() => {
   localStorage.clear();
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => new Response(JSON.stringify({ online: 3 }), { status: 200 })),
-  );
+  stubApi();
   installFakeSocket();
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -81,16 +79,6 @@ describe("the 18+ gate", () => {
     localStorage.setItem("pb_tags", '"a string, not a list"');
     renderAt("/text");
     expect(screen.getByRole("heading", { name: /adults only/i })).toBeInTheDocument();
-  });
-});
-
-describe("video", () => {
-  it("is honest that video isn't built yet, and offers text chat", async () => {
-    localStorage.setItem("pb_adult", "true");
-    renderAt("/video");
-    expect(screen.getByRole("heading", { name: /video chat/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /text chat/i })).toHaveAttribute("href", "/text");
-    expect(FakeSocket.instances).toHaveLength(0);
   });
 });
 

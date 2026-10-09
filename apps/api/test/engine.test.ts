@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AGE_BAN_HOURS, FLOOD_MAX, FLOOD_WINDOW_MS, SKIP_MS } from "../src/chat/engine.js";
+import {
+  AGE_BAN_HOURS,
+  FLOOD_MAX,
+  FLOOD_WINDOW_MS,
+  MAX_SIGNALS,
+  SKIP_MS,
+} from "../src/chat/engine.js";
 import { FALLBACK_MS, REMATCH_MS } from "../src/chat/matching.js";
 import { world } from "./chat-helpers.js";
 
@@ -449,5 +455,93 @@ describe("bans in general", () => {
     await a.hello({ tags: ["new"] });
     expect(b.take("ended")).toBeDefined();
     expect(a.take("ready")).toBeDefined();
+  });
+});
+
+describe("video setup messages", () => {
+  const offer = { s: { type: "offer" as const, sdp: "v=0" } };
+  const candidate = {
+    c: { candidate: "candidate:1 1 udp 1 1.2.3.4 5 typ host", sdpMid: "0", sdpMLineIndex: 0 },
+  };
+
+  async function pair(mode: "text" | "video", options: { videoEnabled?: boolean } = {}) {
+    const w = world(options);
+    const a = w.person("a"),
+      b = w.person("b");
+    await a.hello({ mode });
+    await b.hello({ mode });
+    await a.find();
+    await b.find();
+    a.take("matched");
+    b.take("matched");
+    return { w, a, b };
+  }
+
+  it("passes setup messages between two video partners, in both directions", async () => {
+    const { a, b } = await pair("video");
+    await a.say({ t: "sig", d: offer });
+    expect(b.take("sig")).toEqual({ t: "sig", d: offer });
+    await b.say({ t: "sig", d: { s: { type: "answer", sdp: "v=0" } } });
+    expect(a.take("sig")?.d).toEqual({ s: { type: "answer", sdp: "v=0" } });
+    await a.say({ t: "sig", d: candidate });
+    expect(b.take("sig")?.d).toEqual(candidate);
+    expect(a.take("sig")).toBeUndefined(); // never echoed back to the sender
+  });
+
+  it("does not pass them in a text chat", async () => {
+    const { a, b } = await pair("text");
+    await a.say({ t: "sig", d: offer });
+    expect(b.take("sig")).toBeUndefined();
+  });
+
+  it("does not pass them to someone who is not the partner", async () => {
+    const { w, a, b } = await pair("video");
+    const c = w.person("c");
+    await c.hello({ mode: "video" });
+    await a.say({ t: "sig", d: offer });
+    expect(c.take("sig")).toBeUndefined();
+    expect(b.take("sig")).toBeDefined();
+  });
+
+  it("does not pass them when there is no chat: before hello, before matching, or after leaving", async () => {
+    const w = world();
+    const a = w.person("a"),
+      b = w.person("b");
+    await a.say({ t: "sig", d: offer }); // no hello yet
+    await a.hello({ mode: "video" });
+    await b.hello({ mode: "video" });
+    await a.say({ t: "sig", d: offer }); // not matched yet
+    await a.find();
+    await b.find();
+    b.take("matched");
+    expect(b.take("sig")).toBeUndefined();
+    await a.say({ t: "stop" });
+    await a.say({ t: "sig", d: offer }); // chat is over
+    expect(b.take("sig")).toBeUndefined();
+  });
+
+  it("stops relaying after a generous limit, so the channel cannot be flooded", async () => {
+    const { a, b } = await pair("video");
+    for (let i = 0; i < MAX_SIGNALS + 50; i++) await a.say({ t: "sig", d: candidate });
+    expect(b.got.filter((m) => m.t === "sig")).toHaveLength(MAX_SIGNALS);
+  });
+
+  it("treats everyone as text when video is switched off", async () => {
+    const { a, b } = await pair("video", { videoEnabled: false });
+    await a.say({ t: "sig", d: offer });
+    expect(b.take("sig")).toBeUndefined();
+  });
+
+  it("keeps text people and video people apart", async () => {
+    const w = world();
+    const t = w.person("t"),
+      v = w.person("v");
+    await t.hello({ mode: "text" });
+    await v.hello({ mode: "video" });
+    await t.find();
+    await v.find();
+    await tick(30_000);
+    expect(t.take("matched")).toBeUndefined();
+    expect(v.take("matched")).toBeUndefined();
   });
 });

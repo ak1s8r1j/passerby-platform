@@ -55,7 +55,7 @@ export interface Person {
 }
 
 /** A chat engine wired to a recording transport, with people who can talk to it. */
-export function world() {
+export function world(options: { videoEnabled?: boolean } = {}) {
   const sent = new Map<string, ServerMessage[]>();
   const closed: { id: string; code: number }[] = [];
   const bans = new MemoryBans();
@@ -73,6 +73,7 @@ export function world() {
     bans,
     reports,
     onPresence: () => presence++,
+    ...options,
   });
 
   const person = (id: string, visitor = id): Person => {
