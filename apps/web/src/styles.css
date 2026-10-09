@@ -520,3 +520,132 @@ select,
     display: none;
   }
 }
+
+/* ---------- account and pages ---------- */
+.aform {
+  display: grid;
+  gap: 8px;
+  max-width: 420px;
+  margin-top: 12px;
+}
+.aform label {
+  font-weight: 600;
+}
+.aform input:not([type="checkbox"]) {
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  min-height: 46px;
+  padding: 0 12px;
+}
+.aform .chk {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-weight: 400;
+}
+.aform .chk input {
+  margin-top: 4px;
+  flex: none;
+}
+.okmsg {
+  color: var(--walk);
+  font-weight: 600;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+}
+.card h2 {
+  margin: 0 0 4px;
+}
+.line {
+  margin: 0.2em 0;
+  overflow-wrap: anywhere;
+}
+.btn.stop {
+  background: var(--stop);
+  color: #fff;
+}
+.link {
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.doc h2 {
+  margin-top: 1.6em;
+  font-size: 1.25rem;
+}
+.doc li {
+  margin: 0.4em 0;
+}
+details {
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+footer a {
+  color: inherit;
+}
+.doc .card h2 {
+  margin: 0 0 4px;
+  font-size: 1.4rem;
+}
+.doc .row {
+  margin-bottom: 16px;
+}
+
+/* ---------- continue with Google ---------- */
+.alt {
+  max-width: 420px;
+  margin-top: 8px;
+}
+.or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+  color: var(--muted);
+}
+.or::before,
+.or::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--line);
+}
+.gbtn {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.methods h3 {
+  margin: 0 0 6px;
+}
+.g {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  color: #4285f4;
+  font-weight: 900;
+  border: 1px solid var(--line);
+}

@@ -11,19 +11,23 @@ datasource db {
 
 /// A visitor who chose to make an account. Chatting never needs one.
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  displayName  String
-  /// argon2id hash. The password itself is never stored.
-  passwordHash String
-  createdAt    DateTime  @default(now())
-  lastLoginAt  DateTime?
-  loginCount   Int       @default(0)
-  premiumUntil DateTime?
+  id             String    @id @default(cuid())
+  email          String    @unique
+  /// Google's permanent ID for this person (the "sub" in their login token), once they have signed in with Google.
+  googleSub      String?   @unique
+  displayName    String
+  /// argon2id hash. The password itself is never stored. Empty for someone who only signs in with Google.
+  passwordHash   String?
+  createdAt      DateTime  @default(now())
+  lastLoginAt    DateTime?
+  loginCount     Int       @default(0)
+  premiumUntil   DateTime?
   /// Set when a moderator suspends the account.
-  disabledAt   DateTime?
+  disabledAt     DateTime?
+  /// Goes up whenever the password changes or the account is suspended, which ends every sign-in at once.
+  sessionVersion Int       @default(1)
   /// Scrambled ID of the address that signed up. Never a raw IP address.
-  signupRef    String
+  signupRef      String
 
   passes PassClaim[]
 

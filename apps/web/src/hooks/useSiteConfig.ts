@@ -5,6 +5,9 @@ import { SiteConfig } from "@passerby/shared";
 export const FALLBACK_CONFIG: SiteConfig = {
   video: true,
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  name: "Passerby",
+  contact: null,
+  googleSignIn: false,
 };
 
 let cached: Promise<SiteConfig> | null = null;

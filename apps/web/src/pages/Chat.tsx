@@ -15,6 +15,7 @@ import { chatReducer, initialChat, statusText } from "../chat/state.js";
 import { useChatSocket } from "../hooks/useChatSocket.js";
 import { useSiteConfig } from "../hooks/useSiteConfig.js";
 import { useStoredState } from "../hooks/useStoredState.js";
+import { usePageTitle } from "../hooks/usePageTitle.js";
 import { useUnreadTitle } from "../hooks/useUnreadTitle.js";
 import { useVideoCall } from "../hooks/useVideoCall.js";
 
@@ -98,6 +99,7 @@ function Screen({ mode }: { mode: ChatMode }) {
 /** The chat screen, for text or video. Only shown once the visitor has confirmed they are 18 or older. */
 function Conversation({ mode, iceServers }: { mode: ChatMode; iceServers: IceServer[] }) {
   const isVideo = mode === "video";
+  usePageTitle(isVideo ? "Video chat" : "Text chat");
   const [state, dispatch] = useReducer(chatReducer, initialChat);
   const [tags, setTags] = useStoredState<string[]>("tags", [], isTags);
   const [lang, setLang] = useStoredState<Prefs["lang"]>("lang", "", isLang);

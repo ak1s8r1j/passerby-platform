@@ -51,7 +51,24 @@ describe("GET /api/v1/config", () => {
     expect(res.body).toEqual({
       video: true,
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      name: "Passerby",
+      contact: null,
+      googleSignIn: false,
     });
+  });
+
+  it("reports the site's name and contact address when they are set", async () => {
+    const res = await request(
+      withConfig({ SITE_NAME: "Strollr", CONTACT_EMAIL: "help@example.com" }),
+    ).get("/api/v1/config");
+    expect(res.body).toMatchObject({ name: "Strollr", contact: "help@example.com" });
+  });
+
+  it("treats a blank name or contact as not set", async () => {
+    const res = await request(withConfig({ SITE_NAME: "", CONTACT_EMAIL: "" })).get(
+      "/api/v1/config",
+    );
+    expect(res.body).toMatchObject({ name: "Passerby", contact: null });
   });
 
   it("adds the relay server, with its login, when one is set", async () => {

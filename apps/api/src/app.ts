@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import express, { type ErrorRequestHandler, type Express } from "express";
 import { rateLimit } from "express-rate-limit";
+import type { Router } from "express";
 import helmet from "helmet";
 import type { ErrorResponse, HealthResponse, SiteConfig, StatsResponse } from "@passerby/shared";
 import { iceServers, type Config } from "./config.js";
@@ -16,11 +17,13 @@ export interface AppDeps {
   health: Health;
   /** How many people are connected right now. */
   online(): number;
+  /** Sign-up, sign-in and account settings, mounted at /api/v1/auth. Left out in tests that do not need accounts. */
+  auth?: Router;
 }
 
 const apiError = (code: string, message: string): ErrorResponse => ({ error: { code, message } });
 
-export function createApp({ config, logger, health, online }: AppDeps): Express {
+export function createApp({ config, logger, health, online, auth }: AppDeps): Express {
   const app = express();
   app.disable("x-powered-by");
   // Railway and most hosts sit behind one proxy. This makes req.ip the visitor, not the proxy.
@@ -68,9 +71,16 @@ export function createApp({ config, logger, health, online }: AppDeps): Express 
     res.json(body);
   });
   api.get("/config", (_req, res) => {
-    const body: SiteConfig = { video: config.VIDEO_ENABLED, iceServers: iceServers(config) };
+    const body: SiteConfig = {
+      video: config.VIDEO_ENABLED,
+      iceServers: iceServers(config),
+      name: config.SITE_NAME,
+      contact: config.CONTACT_EMAIL ?? null,
+      googleSignIn: Boolean(config.GOOGLE_CLIENT_ID),
+    };
     res.json(body);
   });
+  if (auth) api.use("/auth", auth);
   api.use((_req, res) => {
     res.status(404).json(apiError("not_found", "There is no such API route."));
   });

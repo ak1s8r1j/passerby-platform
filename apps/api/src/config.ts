@@ -7,25 +7,47 @@ const optional = <T extends z.ZodType>(schema: T) =>
 
 const PLACEHOLDER_SECRET = "change-me-to-a-long-random-string";
 
-const EnvSchema = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-  DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-  SESSION_SECRET: z.string().min(16, "SESSION_SECRET must be at least 16 characters"),
-  PUBLIC_URL: z.url().default("http://localhost:5173"),
-  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
-  /** Set to "false" to switch video chat off for everyone. */
-  VIDEO_ENABLED: z
-    .enum(["true", "false"])
-    .default("true")
-    .transform((v) => v === "true"),
-  /** A relay server so video works on strict networks. Without one, some pairs cannot connect. */
-  TURN_URL: optional(z.string()),
-  TURN_USER: optional(z.string()),
-  TURN_PASS: optional(z.string()),
-  /** Folder with the built web app. When set, the API serves it too (production). */
-  WEB_DIST: optional(z.string()),
-});
+const EnvSchema = z
+  .object({
+    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+    DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
+    SESSION_SECRET: z.string().min(16, "SESSION_SECRET must be at least 16 characters"),
+    PUBLIC_URL: z.url().default("http://localhost:5173"),
+    LOG_LEVEL: z
+      .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
+      .default("info"),
+    /** The site's name, shown on the pages. */
+    SITE_NAME: z.preprocess(
+      (v) => (v === "" ? undefined : v),
+      z.string().min(1).max(40).default("Passerby"),
+    ),
+    /** Where people can write about bans, privacy or payments. Shown on the Rules, Terms and Privacy pages. */
+    CONTACT_EMAIL: optional(z.string().max(120)),
+    /** "Continue with Google": both come from the Google Cloud console. Leave both blank to switch it off. */
+    GOOGLE_CLIENT_ID: optional(z.string()),
+    GOOGLE_CLIENT_SECRET: optional(z.string()),
+    /** Only for testing against a stand-in for Google. Leave blank in real life. */
+    GOOGLE_AUTH_URL: optional(z.url()),
+    GOOGLE_TOKEN_URL: optional(z.url()),
+    GOOGLE_JWKS_URL: optional(z.url()),
+    GOOGLE_ISSUER: optional(z.string()),
+    /** Set to "false" to switch video chat off for everyone. */
+    VIDEO_ENABLED: z
+      .enum(["true", "false"])
+      .default("true")
+      .transform((v) => v === "true"),
+    /** A relay server so video works on strict networks. Without one, some pairs cannot connect. */
+    TURN_URL: optional(z.string()),
+    TURN_USER: optional(z.string()),
+    TURN_PASS: optional(z.string()),
+    /** Folder with the built web app. When set, the API serves it too (production). */
+    WEB_DIST: optional(z.string()),
+  })
+  .refine((env) => Boolean(env.GOOGLE_CLIENT_ID) === Boolean(env.GOOGLE_CLIENT_SECRET), {
+    message: "set both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, or neither",
+    path: ["GOOGLE_CLIENT_SECRET"],
+  });
 
 export type Config = z.infer<typeof EnvSchema>;
 

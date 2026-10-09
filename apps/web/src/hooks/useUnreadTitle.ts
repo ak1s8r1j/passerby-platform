@@ -5,26 +5,32 @@ import { useCallback, useEffect, useRef } from "react";
  * ("(2) Passerby…") so the visitor notices. It clears when they come back.
  */
 export function useUnreadTitle(): () => void {
-  const base = useRef(document.title);
+  /** The real title, remembered only while a count is showing. */
+  const real = useRef<string | null>(null);
   const unread = useRef(0);
 
-  useEffect(() => {
-    const original = base.current;
-    const reset = () => {
-      if (document.hidden) return;
-      unread.current = 0;
-      document.title = original;
-    };
-    document.addEventListener("visibilitychange", reset);
-    return () => {
-      document.removeEventListener("visibilitychange", reset);
-      document.title = original;
-    };
+  const clear = useCallback(() => {
+    if (real.current !== null) document.title = real.current;
+    real.current = null;
+    unread.current = 0;
   }, []);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (!document.hidden) clear();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      clear();
+    };
+  }, [clear]);
 
   return useCallback(() => {
     if (!document.hidden) return;
+    // Read the title now, not when the page opened: it may have been set since.
+    real.current ??= document.title;
     unread.current++;
-    document.title = `(${unread.current}) ${base.current}`;
+    document.title = `(${unread.current}) ${real.current}`;
   }, []);
 }

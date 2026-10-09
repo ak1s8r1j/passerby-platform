@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
+import { usePageTitle } from "../hooks/usePageTitle.js";
 import { useSiteConfig } from "../hooks/useSiteConfig.js";
 
 export function Home() {
+  usePageTitle();
   const { ready, config } = useSiteConfig();
   // Offer video until the server says it is off.
   const video = !ready || config.video;

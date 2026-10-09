@@ -33,6 +33,7 @@ export default tseslint.config(
       "*.config.{js,ts}",
       "apps/*/*.config.{js,ts}",
       "scripts/**/*.mjs",
+      "e2e/**/*.mjs",
     ],
     languageOptions: { globals: globals.node },
   },
@@ -44,7 +45,13 @@ export default tseslint.config(
   },
   {
     // Scripts and tests may print to the terminal.
-    files: ["apps/api/scripts/**", "scripts/**", "**/*.test.{ts,tsx}", "apps/*/vitest.*.ts"],
+    files: [
+      "apps/api/scripts/**",
+      "scripts/**",
+      "e2e/**",
+      "**/*.test.{ts,tsx}",
+      "apps/*/vitest.*.ts",
+    ],
     rules: { "no-console": "off" },
   },
 );

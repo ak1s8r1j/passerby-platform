@@ -279,9 +279,9 @@ describe("talking", () => {
   });
 
   it("puts a count in the tab title for messages that arrive while the tab is hidden", async () => {
-    const original = "Passerby | Text chat"; // a real page always has a title
-    document.title = original;
     const server = await startAndMatch();
+    const original = "Text chat | Passerby"; // the page sets its own title
+    expect(document.title).toBe(original);
     Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
     server.receive({ t: "msg", text: "are you there?" });
     await waitFor(() => expect(document.title).toBe(`(1) ${original}`));
