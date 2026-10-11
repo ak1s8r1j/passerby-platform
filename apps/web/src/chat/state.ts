@@ -25,6 +25,11 @@ export interface ChatState {
   banned: { until: number; reason: BanReason } | null;
   /** The visitor has reported this chat (so the Report button is not offered again). */
   reported: boolean;
+  /**
+   * The chat that just ended (the stranger left) has not been reported, and the page has already started
+   * looking for someone new. The server keeps that chat for a few minutes, so it can still be reported.
+   */
+  earlier: boolean;
   /** The interests both people share, for the person in the current chat. */
   common: string[];
   /** Incremented for every new line, so each has a stable key. */
@@ -38,6 +43,7 @@ export const initialChat: ChatState = {
   waitUntil: null,
   banned: null,
   reported: false,
+  earlier: false,
   common: [],
   nextId: 1,
 };
@@ -100,12 +106,25 @@ export function chatReducer(s: ChatState, a: Action): ChatState {
         typing: false,
         waitUntil: null,
         reported: false,
+        // Moving on after the stranger left: that chat can still be reported while looking for the next one.
+        earlier:
+          (s.phase === "ended" || s.phase === "searching" || s.phase === "cooldown") && s.earlier
+            ? true
+            : s.phase === "ended" && !s.reported,
         common: [],
       };
 
     case "stop":
       if (s.phase === "banned") return s;
-      return { ...s, phase: "idle", lines: [], typing: false, waitUntil: null, common: [] };
+      return {
+        ...s,
+        phase: "idle",
+        lines: [],
+        typing: false,
+        waitUntil: null,
+        common: [],
+        earlier: false,
+      };
 
     case "sent":
       return s.phase === "chatting" ? add(s, "me", a.text) : s;
@@ -119,7 +138,7 @@ export function chatReducer(s: ChatState, a: Action): ChatState {
     case "dropped":
       if (s.phase === "idle" || s.phase === "banned") return s;
       return add(
-        { ...s, phase: "idle", typing: false, waitUntil: null },
+        { ...s, phase: "idle", typing: false, waitUntil: null, earlier: false },
         "sys",
         "The connection dropped. Press Start to try again.",
       );
@@ -154,6 +173,7 @@ function onServer(s: ChatState, msg: ServerMessage, now: number, siteName: strin
         typing: false,
         waitUntil: null,
         reported: false,
+        earlier: false,
         common: msg.common,
       };
       const first = add(chatting, "sys", hello);
@@ -185,12 +205,25 @@ function onServer(s: ChatState, msg: ServerMessage, now: number, siteName: strin
           REPORT_THANKS_LIVE,
         );
       }
+      if (s.phase === "searching" || s.phase === "cooldown") {
+        return s.earlier
+          ? add({ ...s, reported: true, earlier: false }, "sys", REPORT_THANKS_AFTER)
+          : s;
+      }
       return s.phase === "ended" ? add({ ...s, reported: true }, "sys", REPORT_THANKS_AFTER) : s;
 
     case "banned": {
       const banned = { until: msg.until, reason: msg.reason };
       return add(
-        { ...s, phase: "banned", lines: [], typing: false, waitUntil: null, banned },
+        {
+          ...s,
+          phase: "banned",
+          lines: [],
+          typing: false,
+          waitUntil: null,
+          banned,
+          earlier: false,
+        },
         "sys",
         bannedNotice(siteName, banned),
       );
@@ -210,7 +243,10 @@ function onServer(s: ChatState, msg: ServerMessage, now: number, siteName: strin
 
 /** Whether the Report button should be offered: during a chat, or right after one, once. */
 export const canReport = (s: ChatState) =>
-  (s.phase === "chatting" || s.phase === "ended") && !s.reported;
+  !s.reported &&
+  (s.phase === "chatting" ||
+    s.phase === "ended" ||
+    ((s.phase === "searching" || s.phase === "cooldown") && s.earlier));
 
 /** The line of text under the header: what is going on right now. */
 export function statusText(s: ChatState, now: number, connected: boolean): string {
@@ -226,7 +262,10 @@ export function statusText(s: ChatState, now: number, connected: boolean): strin
     case "chatting":
       return s.typing ? "Stranger is typing…" : "You're talking to a stranger";
     case "ended":
-      return "Chat ended. Press Skip to meet someone else.";
+      // When the stranger left, the page looks for someone new by itself after a moment (see AUTO_NEXT_MS).
+      return connected && !s.reported
+        ? "The stranger left. Finding someone new…"
+        : "Chat ended. Press Skip to meet someone else.";
     case "banned":
       return "You can't chat right now";
   }

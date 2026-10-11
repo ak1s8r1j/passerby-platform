@@ -75,7 +75,7 @@ async def main():
         # Next: partner told, quick skipper waits out the cool-down
         await a.click(".bar .btn.go")
         await b.wait_for_selector("text=The stranger left.")
-        ok("Chat ended" in await status(b) and await b.locator('input[aria-label=Message]').is_disabled(), "partner is told, and can't type to nobody")
+        ok("The stranger left" in await status(b) and await b.locator('input[aria-label=Message]').is_disabled(), "partner is told, and can't type to nobody")
         ok("Finding someone in" in await status(a), "a quick skip shows the cool-down countdown: " + await status(a))
         await until_status(a, "Looking for someone", timeout=6000)
         ok(True, "after the wait, A is searching again")
@@ -106,14 +106,20 @@ async def main():
         ok("can't chat right now" in await status(d), "a removed visitor is not stuck in a reconnect loop")
 
         # connection loss mid-chat is handled gracefully
-        await a.click(".bar .btn.ghost")  # A stops searching, so it is not matched with the next two
+        # A, B and C stop (once told the stranger left they look for someone by themselves), so none of them is
+        # matched with the next two
+        for who in (a, b, c):
+            await who.click(".bar .btn.ghost")
         e = await open_chat(br, vp=(375, 720)); f = await open_chat(br, vp=(375, 720))
         await e.click(".bar .btn.go"); await f.click(".bar .btn.go")
         await until_status(e, "talking to a stranger"); await until_status(f, "talking to a stranger")
         ok(await e.evaluate("document.documentElement.scrollWidth<=innerWidth"), "phone width: no sideways scroll in a chat")
         await e.screenshot(path=SHOTS + "p1-chat-mobile.png")
+        # the line "The stranger left." only stays for a moment (the page then looks for the next person itself),
+        # so watch for it instead of polling
+        await e.evaluate("() => { window.__left = false; new MutationObserver(() => { if (document.body.innerText.includes('The stranger left.')) window.__left = true; }).observe(document.body, {subtree: true, childList: true, characterData: true}); }")
         await f.context.close()
-        await e.wait_for_selector("text=The stranger left.")
+        await e.wait_for_function("() => window.__left === true", timeout=10000)
         ok(True, "closing a tab ends the chat for the other person")
 
         errs = [x for pg in (a, b, c, e) for x in pg.errors]

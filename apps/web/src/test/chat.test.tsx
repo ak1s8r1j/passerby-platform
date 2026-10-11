@@ -252,7 +252,7 @@ describe("talking", () => {
     const server = await startAndMatch();
     server.receive({ t: "ended" });
     expect(await within(log()).findByText("The stranger left.")).toBeInTheDocument();
-    expect(status()).toHaveTextContent("Chat ended. Press Skip to meet someone else.");
+    expect(status()).toHaveTextContent("The stranger left. Finding someone new…");
     expect(screen.getByRole("textbox", { name: /message/i })).toBeDisabled();
     await userEvent.click(button(/^skip/i));
     expect(server.messages.at(-1)).toEqual({ t: "find" });
@@ -348,5 +348,40 @@ describe("losing the connection", () => {
     view.unmount(); // leave before the one-second retry fires
     await new Promise((r) => setTimeout(r, 1300));
     expect(FakeSocket.instances).toHaveLength(1);
+  });
+});
+
+describe("finding the next person by itself", () => {
+  it("looks for someone new a couple of seconds after the stranger leaves", async () => {
+    const server = await startAndMatch();
+    server.receive({ t: "ended" });
+    expect(await within(log()).findByText("The stranger left.")).toBeInTheDocument();
+    expect(server.of("find")).toHaveLength(1); // not instantly
+    await waitFor(() => expect(server.of("find")).toHaveLength(2), { timeout: 5000 });
+    expect(status()).toHaveTextContent("Looking for someone…");
+  });
+
+  it("does not look again if the visitor pressed Stop", async () => {
+    const server = await startAndMatch();
+    await userEvent.click(button(/^stop$/i));
+    await new Promise((r) => setTimeout(r, 3200));
+    expect(server.of("find")).toHaveLength(1);
+  });
+
+  it("does not look again after the visitor reported the stranger", async () => {
+    const server = await startAndMatch();
+    server.receive({ t: "ended" });
+    server.receive({ t: "reported" });
+    await new Promise((r) => setTimeout(r, 3200));
+    expect(server.of("find")).toHaveLength(1);
+  });
+
+  it("only looks once, even if the stranger's leaving is reported twice", async () => {
+    const server = await startAndMatch();
+    server.receive({ t: "ended" });
+    server.receive({ t: "ended" });
+    await waitFor(() => expect(server.of("find")).toHaveLength(2), { timeout: 5000 });
+    await new Promise((r) => setTimeout(r, 600));
+    expect(server.of("find")).toHaveLength(2);
   });
 });

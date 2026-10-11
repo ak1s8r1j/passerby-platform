@@ -127,7 +127,8 @@ async def main():
         await a.wait_for_selector("text=The stranger left.")
 
         # text and video people never meet
-        await a.click(".bar .btn.ghost")  # A stops searching
+        await a.click(".bar .btn.ghost")  # A and B stop searching (B started again by itself after A skipped it)
+        await b.click(".bar .btn.ghost")
         t = await open_chat(br, path="/text"); v = await open_chat(br)
         await t.click(".bar .btn.go"); await v.click(".bar .btn.go")
         await asyncio.sleep(6)  # longer than the 4 second fallback

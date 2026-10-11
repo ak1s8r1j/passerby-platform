@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { ServerMessage } from "@passerby/shared";
-import { chatReducer, initialChat, statusText, type Action, type ChatState } from "./state.js";
+import {
+  canReport,
+  chatReducer,
+  initialChat,
+  statusText,
+  type Action,
+  type ChatState,
+} from "./state.js";
 
 const NOW = 1_000_000;
 const server = (msg: ServerMessage): Action => ({
@@ -85,7 +92,8 @@ describe("chatting", () => {
     expect(s.phase).toBe("ended");
     expect(texts(s).at(-1)).toBe("sys:The stranger left.");
     expect(texts(s)).not.toContain("me:hello?");
-    expect(statusText(s, NOW, true)).toBe("Chat ended. Press Skip to meet someone else.");
+    expect(statusText(s, NOW, true)).toBe("The stranger left. Finding someone new…");
+    expect(statusText(s, NOW, false)).toBe("Chat ended. Press Skip to meet someone else.");
   });
 
   it("shows the server's error notices in the log (for example, sending too fast)", () => {
@@ -141,5 +149,36 @@ describe("statusText", () => {
   it("says Connecting while there is no connection yet", () => {
     expect(statusText(initialChat, NOW, false)).toBe("Connecting…");
     expect(statusText(initialChat, NOW, true)).toBe("Ready when you are");
+  });
+});
+
+describe("reporting the chat that just ended", () => {
+  const chatting = run([{ type: "start" }, server({ t: "matched", common: [], init: true })]);
+  const left = run([server({ t: "ended" })], chatting);
+
+  it("can still be reported while looking for the next person", () => {
+    const s = run([{ type: "start" }], left);
+    expect(s.phase).toBe("searching");
+    expect(canReport(s)).toBe(true);
+  });
+
+  it("is thanked once, and the Report button goes", () => {
+    let s = run([{ type: "start" }, server({ t: "reported" })], left);
+    expect(texts(s).at(-1)).toContain("Your report was saved");
+    expect(canReport(s)).toBe(false);
+    s = run([server({ t: "matched", common: [], init: true })], s);
+    expect(canReport(s)).toBe(true); // the new chat can be reported on its own
+  });
+
+  it("is not offered after Stop, a match, a drop or when it was already reported", () => {
+    const searching = run([{ type: "start" }], left);
+    expect(canReport(run([{ type: "stop" }], searching))).toBe(false);
+    expect(canReport(run([{ type: "dropped" }], searching))).toBe(false);
+    const reported = run([server({ t: "reported" }), { type: "start" }], left);
+    expect(canReport(reported)).toBe(false);
+  });
+
+  it("is not offered when starting from nothing", () => {
+    expect(canReport(run([{ type: "start" }]))).toBe(false);
   });
 });

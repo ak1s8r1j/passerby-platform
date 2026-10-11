@@ -42,6 +42,8 @@ import { useVideoCall } from "../hooks/useVideoCall.js";
 
 const SITE = "Passerby";
 const TYPING_SHOWN_MS = 2500;
+/** After the stranger leaves, how long before the page starts looking for someone new by itself. */
+export const AUTO_NEXT_MS = 2500;
 /** How long a reaction takes to rise. Matches the animation in brand.css. */
 const FLOAT_MS = 2600;
 /** The least time between the visitor's own reactions (a little over what the server allows). */
@@ -370,6 +372,17 @@ function Conversation({ mode, iceServers }: { mode: ChatMode; iceServers: IceSer
   useEffect(() => {
     if (state.phase !== "chatting") setChatHidden(false);
   }, [state.phase]);
+
+  // When the stranger skips or leaves, look for the next person after a short pause instead of waiting for a
+  // press of Skip. Not after the visitor reported (they chose to end it), while the report box is open, when
+  // they pressed Stop (that goes to idle, not ended), or when they are banned or offline.
+  const startRef = useRef(start);
+  startRef.current = start;
+  useEffect(() => {
+    if (state.phase !== "ended" || state.reported || reporting || !connected) return;
+    const t = setTimeout(() => void startRef.current(), AUTO_NEXT_MS);
+    return () => clearTimeout(t);
+  }, [state.phase, state.reported, reporting, connected]);
 
   const stop = () => {
     send({ t: "stop" });
