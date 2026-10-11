@@ -153,6 +153,8 @@ async def main():
         await m1.click(".bar .btn.go"); await m2.click(".bar .btn.go")
         await playing(m1, timeout=40000)
         ok(await m1.evaluate("document.documentElement.scrollWidth <= innerWidth"), "phone width: no sideways scroll during a video call")
+        ok(await m1.evaluate("getComputedStyle(document.querySelector('header.top')).display === 'none'"), "phone call: the site header steps aside so the picture fills the screen")
+        ok(await m1.evaluate("(() => { const q = s => { const e = document.querySelector(s); return !!e && e.getBoundingClientRect().width > 0 && getComputedStyle(e).display !== 'none'; }; return q('.vclose') && q('.vwho') && q('.vrail .filter-pill') && q('.vrail .gamebtn') && q('.vrail .link.danger') && q('.swipe-hint') && !q('.bar .btn.ghost') && !q('.icebreakers'); })()"), "phone call: close button, who-pill, round Filters/Games/Report column and swipe hint are shown; Stop button and conversation chips are not")
         await asyncio.sleep(1.0); await m1.screenshot(path=SHOTS + "video-mobile-call.png")
 
         errs = [x for pg in (a, b, c, t, v, m1, m2) for x in pg.errors]

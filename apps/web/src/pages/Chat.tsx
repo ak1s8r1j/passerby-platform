@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState, type FormEvent } from "react";
+import { useEffect, useReducer, useRef, useState, type FormEvent, type TouchEvent } from "react";
 import { Link } from "react-router-dom";
 import {
   cleanTags,
@@ -319,6 +319,25 @@ function Conversation({ mode, iceServers }: { mode: ChatMode; iceServers: IceSer
     send(hello()); // the latest choices, in case they changed since the connection opened
     send({ t: "find" });
   };
+  // On a phone in a video call, a quick swipe up on the picture skips to the next person, like the Skip button.
+  const swipe = useRef<{ x: number; y: number; t: number } | null>(null);
+  const swipeStart = (e: TouchEvent<HTMLElement>) => {
+    const target = e.target as HTMLElement;
+    const t = e.touches[0];
+    const onControl = target.closest(
+      "button, a, input, select, textarea, .pane, .game, .filter-pop, .vdev",
+    );
+    swipe.current = !onControl && t ? { x: t.clientX, y: t.clientY, t: Date.now() } : null;
+  };
+  const swipeEnd = (e: TouchEvent<HTMLElement>) => {
+    const from = swipe.current;
+    swipe.current = null;
+    const t = e.changedTouches[0];
+    if (!from || !t || state.phase !== "chatting" || !connected || asking || out) return;
+    const up = from.y - t.clientY;
+    if (up > 90 && Math.abs(t.clientX - from.x) < 60 && Date.now() - from.t < 700) void start();
+  };
+
   const stop = () => {
     send({ t: "stop" });
     game.reset();
@@ -402,7 +421,11 @@ function Conversation({ mode, iceServers }: { mode: ChatMode; iceServers: IceSer
   const classes = ["chat", isVideo && "video", state.phase === "idle" && "idle"].filter(Boolean);
 
   return (
-    <section className={classes.join(" ")}>
+    <section
+      className={classes.join(" ")}
+      onTouchStart={isVideo ? swipeStart : undefined}
+      onTouchEnd={isVideo ? swipeEnd : undefined}
+    >
       <h1 className="sr">{isVideo ? "Video" : "Text"} chat with a stranger</h1>
       {isVideo && (
         <VideoPanel
@@ -460,6 +483,25 @@ function Conversation({ mode, iceServers }: { mode: ChatMode; iceServers: IceSer
       )}
       <div className="col">
         <div className="status">
+          {isVideo && state.phase !== "idle" && !out && (
+            <button type="button" className="vclose" aria-label="Leave chat" onClick={stop}>
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <path
+                  d="M6 6l12 12M18 6L6 18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.6"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          )}
+          {isVideo && inChat && (
+            <span className="vwho">
+              {strangerCountry && <Flag code={strangerCountry} round />}
+              <span>{strangerCountry ? `${strangerCountry} · Stranger` : "Stranger"}</span>
+            </span>
+          )}
           <span
             id="status"
             role="status"
@@ -472,31 +514,34 @@ function Conversation({ mode, iceServers }: { mode: ChatMode; iceServers: IceSer
             </span>
             <span>{asking ? "Waiting for your camera…" : statusText(state, now, connected)}</span>
           </span>
-          <FilterPopover
-            open={filtersOpen}
-            onOpen={setFiltersOpen}
-            prefs={{ tags, lang, gender, seek, countries }}
-            onCountries={setCountries}
-            onTags={setTags}
-            onLang={setLang}
-            onGender={setGender}
-            onSeek={setSeek}
-          />
-          {inChat && (
-            <button
-              type="button"
-              className="gamebtn"
-              aria-expanded={gamesOpen || game.state !== null}
-              onClick={() => setGamesOpen(!gamesOpen)}
-            >
-              Games
-            </button>
-          )}
-          {reportable && (
-            <button type="button" className="link danger" onClick={() => setReporting(true)}>
-              Report
-            </button>
-          )}
+          {/* Filters, Games and Report. On a phone video call these become a column of round buttons. */}
+          <div className="vrail">
+            <FilterPopover
+              open={filtersOpen}
+              onOpen={setFiltersOpen}
+              prefs={{ tags, lang, gender, seek, countries }}
+              onCountries={setCountries}
+              onTags={setTags}
+              onLang={setLang}
+              onGender={setGender}
+              onSeek={setSeek}
+            />
+            {inChat && (
+              <button
+                type="button"
+                className="gamebtn"
+                aria-expanded={gamesOpen || game.state !== null}
+                onClick={() => setGamesOpen(!gamesOpen)}
+              >
+                Games
+              </button>
+            )}
+            {reportable && (
+              <button type="button" className="link danger" onClick={() => setReporting(true)}>
+                Report
+              </button>
+            )}
+          </div>
         </div>
 
         {inChat && (
@@ -613,6 +658,11 @@ function Conversation({ mode, iceServers }: { mode: ChatMode; iceServers: IceSer
             </svg>
           </button>
         </form>
+        {isVideo && inChat && (
+          <p className="swipe-hint" aria-hidden="true">
+            ↑ swipe up to skip
+          </p>
+        )}
       </div>
       <ReportDialog open={reporting} onCancel={() => setReporting(false)} onSend={sendReport} />
     </section>

@@ -2249,3 +2249,187 @@ dialog.rep .chk:has(input:checked) {
     height: 34px;
   }
 }
+
+/* ---------- phone video call: closer to the prototype ---------- */
+.vclose,
+.vwho,
+.swipe-hint {
+  display: none;
+}
+.vrail {
+  display: contents;
+}
+@media (max-width: 760px) {
+  /* the site header and footer step aside once a call is under way, so the picture fills the phone */
+  body:has(.chat.video:not(.idle)) .top,
+  body:has(.chat.video:not(.idle)) footer {
+    display: none;
+  }
+  body:has(.chat.video:not(.idle)) .chat.video {
+    height: 100dvh;
+    min-height: 0;
+    padding-top: 8px;
+  }
+  .chat.video .vids,
+  .chat.video .col {
+    inset: 8px 8px 8px;
+  }
+
+  /* top left: a close button and who you are talking to */
+  .chat.video .status {
+    position: static;
+    align-items: center;
+    padding: 12px 0 0 12px;
+  }
+  .chat.video .vclose {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgb(10 6 20 / 0.62);
+    color: #fff;
+    backdrop-filter: blur(6px);
+    cursor: pointer;
+  }
+  .chat.video .vwho {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    min-height: 44px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: rgb(10 6 20 / 0.62);
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 800;
+    white-space: nowrap;
+    backdrop-filter: blur(6px);
+  }
+  .chat.video .vwho .flag {
+    width: 22px;
+    height: 22px;
+  }
+  /* while chatting the status is read aloud rather than shown; waiting and errors still show */
+  .chat.video:not(.idle) #status.live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .chat.video .vcommon {
+    top: 64px;
+    left: 12px;
+    font-size: 0.75rem;
+  }
+
+  /* right: filters, games and report as a column of round buttons under your picture */
+  .chat.video .vrail {
+    position: absolute;
+    top: 186px;
+    right: 12px;
+    z-index: 4;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .chat.video .vrail .filter-pill,
+  .chat.video .vrail .gamebtn,
+  .chat.video .vrail .link.danger {
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    margin: 0;
+    padding: 0;
+    border-radius: 50%;
+    background: rgb(10 6 20 / 0.62);
+    color: #fff;
+    font-size: 0;
+    backdrop-filter: blur(6px);
+  }
+  .chat.video .vrail .filter-pill.on,
+  .chat.video .vrail .gamebtn[aria-expanded="true"] {
+    background: var(--grad);
+  }
+  .chat.video .vrail .filter-pill span,
+  .chat.video .vrail .filter-pill svg:last-child {
+    display: none;
+  }
+  .chat.video .vrail .filter-pill svg {
+    width: 22px;
+    height: 22px;
+  }
+  .chat.video .vrail .gamebtn::before {
+    content: "\1F3B2";
+    font-size: 1.3rem;
+  }
+  .chat.video .vrail .link.danger::before {
+    content: "\2691";
+    color: #ff8fb4;
+    font-size: 1.2rem;
+  }
+  /* games sit below your picture and to the left of the column, so nothing hides their buttons */
+  .chat.video .game {
+    margin: 92px 70px 0 12px;
+    max-height: min(440px, calc(100dvh - 400px));
+  }
+
+  /* bottom: reactions, one message box with Send inside it, and a single Skip */
+  .chat.video .icebreakers {
+    display: none;
+  }
+  .chat.video .reactions {
+    justify-content: flex-start;
+    padding-left: 12px;
+  }
+  .chat.video .reactions button {
+    background: rgb(10 6 20 / 0.62);
+  }
+  .chat.video .bar {
+    gap: 8px;
+  }
+  .chat.video .bar .btn.ghost,
+  .chat.video .bar .kbd {
+    display: none;
+  }
+  .chat.video .bar input {
+    order: 0;
+    flex: 1 1 0;
+    min-width: 0;
+    padding-right: 58px;
+  }
+  .chat.video .bar .btn.send {
+    order: 1;
+    align-self: center;
+    flex: none;
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    margin-left: -60px;
+    border-radius: 50%;
+    background: #fff;
+    color: #1a1033;
+  }
+  .chat.video .bar .btn.go {
+    order: 2;
+  }
+  .chat.video:not(.idle) .swipe-hint {
+    display: block;
+    order: 4;
+    margin: 0;
+    padding: 0 0 4px;
+    color: #ddd4f0;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-align: center;
+    text-shadow: 0 1px 3px rgb(0 0 0 / 0.5);
+  }
+}
