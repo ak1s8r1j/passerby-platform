@@ -775,26 +775,6 @@ details {
 .vflip:active {
   transform: scale(0.97);
 }
-.vctl {
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-}
-.vbtn {
-  min-height: 36px;
-  padding: 0 14px;
-  border: 1px solid rgb(255 255 255 / 0.55);
-  border-radius: 999px;
-  background: transparent;
-  color: #fff;
-  font: 800 0.82rem var(--font-body);
-  cursor: pointer;
-}
-.vbtn[aria-pressed="true"] {
-  background: #fff;
-  color: #1a1033;
-}
 .vtoggle {
   display: none;
 }

@@ -410,10 +410,6 @@ function Conversation({ mode, iceServers }: { mode: ChatMode; iceServers: IceSer
           remote={video.remote}
           note={videoNote}
           controls={state.phase !== "idle"}
-          micOn={video.micOn}
-          camOn={video.camOn}
-          onMic={video.toggleMic}
-          onCam={video.toggleCam}
           cameras={video.cameras}
           mics={video.mics}
           cameraId={video.cameraId}

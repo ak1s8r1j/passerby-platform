@@ -238,33 +238,6 @@ describe("the call", () => {
   });
 });
 
-describe("the microphone and camera buttons", () => {
-  it("only appear once a chat has been started", async () => {
-    await openVideo();
-    expect(screen.queryByRole("button", { name: /mute mic/i })).not.toBeInTheDocument();
-    await userEvent.click(button(/^start$/i));
-    expect(await screen.findByRole("button", { name: /mute mic/i })).toBeInTheDocument();
-  });
-
-  it("mute the microphone and switch the camera off, and back on", async () => {
-    await startAndMatch(true);
-    const [video, audio] = [
-      media.streams[0]!.getVideoTracks()[0]!,
-      media.streams[0]!.getAudioTracks()[0]!,
-    ];
-    await userEvent.click(button(/mute mic/i));
-    expect(audio.enabled).toBe(false);
-    expect(video.enabled).toBe(true);
-    expect(button(/unmute mic/i)).toHaveAttribute("aria-pressed", "true");
-    await userEvent.click(button(/camera off/i));
-    expect(video.enabled).toBe(false);
-    await userEvent.click(button(/unmute mic/i));
-    await userEvent.click(button(/camera on/i));
-    expect(audio.enabled).toBe(true);
-    expect(video.enabled).toBe(true);
-  });
-});
-
 describe("ending a video chat", () => {
   it("when the other person leaves: the call closes, their picture goes, the camera stays on", async () => {
     const server = await startAndMatch(true);
@@ -398,16 +371,6 @@ describe("camera and microphone choices", () => {
     await waitFor(() => expect(FakePeer.instances[0]!.replaced).toHaveLength(1));
     expect(FakePeer.instances[0]!.replaced[0]!.kind).toBe("audio");
     expect(FakePeer.instances[0]!.replaced[0]!.deviceId).toBe("mic-b");
-  });
-
-  it("keeps the microphone muted when the camera is changed", async () => {
-    media = installFakeMedia({ devices: TWO });
-    await startAndMatch(true);
-    await userEvent.click(button(/mute mic/i));
-    await userEvent.selectOptions(await screen.findByRole("combobox", { name: "Camera" }), "cam-b");
-    await waitFor(() => expect(FakePeer.instances[0]!.replaced).toHaveLength(1));
-    const audio = media.streams[0]!.tracks.find((t) => t.kind === "audio")!;
-    expect(audio.enabled).toBe(false);
   });
 
   it("Flip camera goes to the next camera when there is more than one", async () => {

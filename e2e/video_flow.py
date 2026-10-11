@@ -1,6 +1,6 @@
 """
 End-to-end test of video chat with real browsers and fake cameras: both people receive each other's live
-picture, the microphone and camera buttons work, Next and Stop end the call and turn the camera off,
+picture, the camera and microphone choices work, Next and Stop end the call and turn the camera off,
 text and video people never meet, and a blocked camera is explained.
 
 Chromium is started with a fake camera and microphone, so no real devices are needed.
@@ -103,15 +103,6 @@ async def main():
         await a.mouse.move(5, 5)
         await a.wait_for_selector(".vdev", state="hidden")
         ok(True, "and they disappear again when the pointer leaves")
-
-        # microphone and camera buttons
-        await a.hover("#local"); await a.click('button:has-text("Mute mic")')
-        ok(await a.evaluate("document.getElementById('local').srcObject.getAudioTracks()[0].enabled === false"), "Mute mic switches the microphone off")
-        ok(await a.get_attribute('button:has-text("Unmute mic")', "aria-pressed") == "true", "the button shows it is on, and says Unmute")
-        await a.click('button:has-text("Camera off")')
-        ok(await a.evaluate("document.getElementById('local').srcObject.getVideoTracks()[0].enabled === false"), "Camera off switches the camera off")
-        await a.click('button:has-text("Unmute mic")'); await a.click('button:has-text("Camera on")')
-        ok(await a.evaluate("document.getElementById('local').srcObject.getAudioTracks()[0].enabled === true && document.getElementById('local').srcObject.getVideoTracks()[0].enabled === true"), "both can be switched back on")
 
         # Next: partner told, their picture cleared, own camera stays on
         track = await a.evaluate_handle("document.getElementById('local').srcObject.getVideoTracks()[0]")

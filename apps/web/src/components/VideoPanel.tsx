@@ -6,12 +6,8 @@ interface Props {
   remote: MediaStream | null;
   /** What to say over the picture ("Looking for someone…"). */
   note: string;
-  /** Show the microphone and camera buttons. */
+  /** Show the camera and microphone choices. */
   controls: boolean;
-  micOn: boolean;
-  camOn: boolean;
-  onMic(): void;
-  onCam(): void;
   cameras: DeviceChoice[];
   mics: DeviceChoice[];
   cameraId: string;
@@ -25,18 +21,13 @@ interface Props {
 }
 
 /**
- * The other person's video, your own beside it with its controls (flip, which camera, which microphone, mute,
- * camera off).
+ * The other person's video, your own beside it with its controls (flip, which camera, which microphone).
  */
 export function VideoPanel({
   local,
   remote,
   note,
   controls,
-  micOn,
-  camOn,
-  onMic,
-  onCam,
   cameras,
   mics,
   cameraId,
@@ -137,14 +128,6 @@ export function VideoPanel({
                 ))}
               </select>
             )}
-            <div className="vctl">
-              <button type="button" className="vbtn" aria-pressed={!micOn} onClick={onMic}>
-                {micOn ? "Mute mic" : "Unmute mic"}
-              </button>
-              <button type="button" className="vbtn" aria-pressed={!camOn} onClick={onCam}>
-                {camOn ? "Camera off" : "Camera on"}
-              </button>
-            </div>
           </div>
         )}
       </div>
