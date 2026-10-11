@@ -27,6 +27,7 @@ export function stubApi(
           iceServers: [STUN, TURN],
           name: "Passerby",
           contact: null,
+          accountLink: true, // the account tests look for it; the real server hides it unless asked
           googleSignIn: false,
           ...options.config,
         };

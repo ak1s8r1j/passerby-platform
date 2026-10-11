@@ -4,6 +4,7 @@ interface FakeUser {
   /** null = a Google-only account. */
   password: string | null;
   google: boolean;
+  gender: "m" | "f" | null;
   createdAt: string;
 }
 
@@ -30,6 +31,7 @@ export class FakeAccounts {
       email,
       password: "correct horse",
       google: false,
+      gender: null,
       createdAt: "2026-03-14T10:00:00.000Z",
     };
     a.signedIn = true;
@@ -52,6 +54,7 @@ export class FakeAccounts {
       createdAt: u.createdAt,
       hasPassword: u.password !== null,
       google: u.google,
+      gender: u.gender,
     };
   }
   private json(body: unknown, status = 200) {
@@ -90,6 +93,7 @@ export class FakeAccounts {
         email: String(body.email),
         password: String(body.password),
         google: false,
+        gender: body.gender === "m" || body.gender === "f" ? body.gender : null,
         createdAt: "2026-10-09T08:00:00.000Z",
       };
       this.signedIn = true;
@@ -110,6 +114,11 @@ export class FakeAccounts {
     if (route === "/logout") {
       this.signedIn = false;
       return this.json({ ok: true });
+    }
+    if (route === "/profile") {
+      if (!this.signedIn || !this.user) return this.error(401, "not_signed_in", "Sign in first.");
+      this.user.gender = body.gender === "m" || body.gender === "f" ? body.gender : null;
+      return this.json({ user: this.pub() });
     }
     if (route === "/google/unlink") {
       if (!this.signedIn || !this.user) return this.error(401, "not_signed_in", "Sign in first.");

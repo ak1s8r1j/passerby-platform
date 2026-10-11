@@ -277,6 +277,7 @@ describe("what an account owner sees", () => {
     expect(Object.keys(w.accounts.publicUser(user)).sort()).toEqual([
       "createdAt",
       "email",
+      "gender",
       "google",
       "hasPassword",
       "name",

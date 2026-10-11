@@ -14,6 +14,14 @@ export interface Seeker {
   mode: ChatMode;
   tags: readonly string[];
   lang: string;
+  /** What they say they are: "m", "f", or "" if they did not say. */
+  gender: string;
+  /** Who they want to talk to: "m", "f", or "" for anyone. */
+  seek: string;
+  /** Where they are connecting from (two-letter code), or "" if it could not be worked out. */
+  country?: string;
+  /** Countries they want to talk to; empty means anywhere. */
+  seekCountries?: readonly string[];
   /** When they started looking (milliseconds). */
   queuedAt: number;
   /** The connection they last talked to. */
@@ -21,6 +29,22 @@ export interface Seeker {
   /** People they must never be matched with (for example someone they reported). */
   blocked: ReadonlySet<string>;
 }
+
+/**
+ * Does each person's gender filter allow the other? Someone who wants only women is matched only with
+ * people who say they are women (and who in turn don't want to talk to only men, and so on). Unlike interests,
+ * this is never relaxed by waiting: a filter that gave up after a few seconds would not be a filter.
+ */
+export const gendersAgree = (a: Seeker, b: Seeker) =>
+  (a.seek === "" || a.seek === b.gender) && (b.seek === "" || b.seek === a.gender);
+
+/**
+ * Does each person's country filter allow the other? Someone who picked countries is only matched with people
+ * known to be from one of them: a person whose country could not be worked out is not guessed at.
+ */
+export const countriesAgree = (a: Seeker, b: Seeker) =>
+  (!a.seekCountries?.length || a.seekCountries.includes(b.country ?? "")) &&
+  (!b.seekCountries?.length || b.seekCountries.includes(a.country ?? ""));
 
 /** Someone with no interests, or who has waited a while, is happy with any partner. */
 export const isRelaxed = (s: Seeker, now: number) =>
@@ -35,6 +59,7 @@ export const sharedTags = (a: Seeker, b: Seeker) => a.tags.filter((t) => b.tags.
 export function score(a: Seeker, b: Seeker, now: number): number {
   if (a.id === b.id || a.mode !== b.mode) return -1;
   if (a.blocked.has(b.visitor) || b.blocked.has(a.visitor)) return -1;
+  if (!gendersAgree(a, b) || !countriesAgree(a, b)) return -1;
   const common = sharedTags(a, b).length;
   // With nothing in common, both must be happy to take anyone.
   if (common === 0 && (!isRelaxed(a, now) || !isRelaxed(b, now))) return -1;

@@ -53,8 +53,18 @@ describe("GET /api/v1/config", () => {
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
       name: "Passerby",
       contact: null,
+      accountLink: false, // hidden unless the operator asks for it
       googleSignIn: false,
     });
+  });
+
+  it("shows the account link only when ACCOUNT_LINK is true", async () => {
+    const off = await request(withConfig({})).get("/api/v1/config");
+    expect(off.body.accountLink).toBe(false);
+    const on = await request(withConfig({ ACCOUNT_LINK: "true" })).get("/api/v1/config");
+    expect(on.body.accountLink).toBe(true);
+    const blank = await request(withConfig({ ACCOUNT_LINK: "" })).get("/api/v1/config");
+    expect(blank.body.accountLink).toBe(false); // blank means not set
   });
 
   it("reports the site's name and contact address when they are set", async () => {
@@ -140,6 +150,17 @@ describe("serving the built web app", () => {
       const res = await request(app).get(path);
       expect(res.status, path).toBe(200);
       expect(res.text).toContain("<title>shell</title>");
+    }
+  });
+
+  it("keeps the admin pages out of search engines, and no other page", async () => {
+    for (const path of ["/admin", "/admin/", "/admin/reports"]) {
+      const res = await request(app).get(path);
+      expect(res.status, path).toBe(200);
+      expect(res.headers["x-robots-tag"], path).toMatch(/noindex/);
+    }
+    for (const path of ["/", "/text", "/administrators"]) {
+      expect((await request(app).get(path)).headers["x-robots-tag"], path).toBeUndefined();
     }
   });
 

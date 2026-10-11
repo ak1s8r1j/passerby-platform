@@ -21,5 +21,7 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["src/test/setup.ts"],
     css: false,
+    // jsdom has no layout engine, and some screens draw 250 country tiles: give each test room.
+    testTimeout: 20_000,
   },
 });

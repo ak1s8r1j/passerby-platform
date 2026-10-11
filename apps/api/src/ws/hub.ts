@@ -3,7 +3,8 @@ import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer } from "ws";
 import { parseClientMessage, type ServerMessage } from "@passerby/shared";
-import { ChatEngine, type BanStore, type ReportSink } from "../chat/engine.js";
+import { ChatEngine, type BanStore, type ReportSink, type StatsSink } from "../chat/engine.js";
+import type { EventSink } from "../events.js";
 import type { Logger } from "../logger.js";
 
 export interface Hub {
@@ -24,6 +25,12 @@ export interface HubOptions {
   allowedOrigins: string[];
   /** Turn video chat off for everyone. Default on. */
   videoEnabled?: boolean;
+  /** Where a connection comes from. Defaults to "unknown" for everyone. */
+  countryOf?(address: string): string;
+  /** Counters for the admin dashboard. */
+  stats?: StatsSink;
+  /** The activity log. */
+  events?: EventSink;
   path?: string;
 }
 
@@ -48,6 +55,9 @@ export function createHub({
   visitorOf,
   allowedOrigins,
   videoEnabled = true,
+  countryOf = () => "",
+  stats,
+  events,
   path = "/ws",
 }: HubOptions): Hub {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
@@ -77,8 +87,13 @@ export function createHub({
     bans,
     reports,
     videoEnabled,
+    stats,
+    events,
     onPresence: pushCount,
-    onError: (err, what) => logger.error({ err }, what),
+    onError: (err, what) => {
+      logger.error({ err }, what);
+      events?.record({ kind: "system", type: "error", detail: what });
+    },
   });
 
   const originOk = (req: IncomingMessage) => {
@@ -120,7 +135,7 @@ export function createHub({
     const id = randomUUID();
     const slot: Socket = { ws, times: [], alive: true, queue: Promise.resolve() };
     sockets.set(id, slot);
-    engine.connect(id, visitorOf(address));
+    engine.connect(id, visitorOf(address), countryOf(address));
     ws.on("pong", () => (slot.alive = true));
 
     ws.on("message", (raw) => {

@@ -72,8 +72,40 @@ async def main():
         await b.wait_for_selector("text=can you see me?")
         ok(True, "text chat works alongside the video")
 
+        # layout: their picture above yours, the conversation beside them
+        box = lambda sel: a.evaluate("s => { const r = document.querySelector(s).getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom] }", sel)
+        rl, rt, rr, rb = await box("#remote")
+        ll, lt, lr, lb = await box("#local")
+        gl, _, _, _ = await box("[role=log]")
+        ok(rb <= lt + 2 and abs(rl - ll) < 4, f"the pictures are stacked: theirs above yours ({rt:.0f}-{rb:.0f}, then {lt:.0f}-{lb:.0f})")
+        ok(gl >= max(rr, lr) - 2, "and the conversation is beside them")
+
+        # device controls on your own picture
+        await a.mouse.move(5, 5)
+        ok(not await a.locator(".vdev").is_visible(), "the controls are hidden until the pointer is over your picture")
+        await a.hover("#local")
+        await a.wait_for_selector(".vdev", state="visible")
+        ok(await a.locator(".vdev button:has-text('Flip camera')").count() == 1, "hovering your picture shows a Flip camera button")
+        cams = await a.locator('select[aria-label=Camera] option').count()
+        mics = await a.locator('select[aria-label=Microphone] option').count()
+        ok(cams >= 1 and mics >= 1, f"and a camera list ({cams}) and a microphone list ({mics})")
+        label = await a.evaluate("document.getElementById('local').srcObject.getVideoTracks()[0].label")
+        # Chromium's test camera is named "fake_device_0", which the name check treats as a virtual camera
+        ok("fake" in label.lower(), f"the test camera's name is {label!r}")
+        await b.wait_for_selector("[role=log] .sys.warn:has-text('Virtual Camera Detected')", timeout=8000)
+        ok(True, "the other person is told 'Virtual Camera Detected' (their camera has a test-device name)")
+        ok(await a.locator("[role=log] :text('Your camera looks like a virtual camera')").count() == 1, "and the visitor is told they are being flagged")
+        before = await a.evaluate("document.getElementById('local').dataset.mirror")
+        await a.hover("#local"); await a.click('.vdev button:has-text("Flip camera")')
+        after = await a.evaluate("document.getElementById('local').dataset.mirror")
+        ok(before != after or cams > 1, "Flip camera changes the view")
+        await a.screenshot(path=SHOTS + "video-devices.png")
+        await a.mouse.move(5, 5)
+        await a.wait_for_selector(".vdev", state="hidden")
+        ok(True, "and they disappear again when the pointer leaves")
+
         # microphone and camera buttons
-        await a.click('button:has-text("Mute mic")')
+        await a.hover("#local"); await a.click('button:has-text("Mute mic")')
         ok(await a.evaluate("document.getElementById('local').srcObject.getAudioTracks()[0].enabled === false"), "Mute mic switches the microphone off")
         ok(await a.get_attribute('button:has-text("Unmute mic")', "aria-pressed") == "true", "the button shows it is on, and says Unmute")
         await a.click('button:has-text("Camera off")')

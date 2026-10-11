@@ -5,14 +5,27 @@ import { vi } from "vitest";
 export class FakeTrack {
   enabled = true;
   stopped = false;
-  constructor(public kind: "audio" | "video") {}
+  constructor(
+    public kind: "audio" | "video",
+    public label = kind === "video" ? "Integrated Camera" : "Microphone Array",
+    public deviceId = `${kind}-default`,
+  ) {}
   stop() {
     this.stopped = true;
+  }
+  getSettings() {
+    return { deviceId: this.deviceId };
   }
 }
 
 export class FakeStream {
-  tracks = [new FakeTrack("video"), new FakeTrack("audio")];
+  tracks: FakeTrack[] = [new FakeTrack("video"), new FakeTrack("audio")];
+  addTrack(t: FakeTrack) {
+    this.tracks.push(t);
+  }
+  removeTrack(t: FakeTrack) {
+    this.tracks = this.tracks.filter((x) => x !== t);
+  }
   getTracks() {
     return this.tracks;
   }
@@ -35,6 +48,8 @@ export class FakePeer {
   }
 
   tracks: [FakeTrack, unknown][] = [];
+  /** What replaceTrack was asked to send instead. */
+  replaced: FakeTrack[] = [];
   closed = false;
   localDescription: { type: string; sdp: string } | null = null;
   remoteDescription: { type: string; sdp: string } | null = null;
@@ -53,6 +68,15 @@ export class FakePeer {
 
   addTrack(track: FakeTrack, stream: unknown) {
     this.tracks.push([track, stream]);
+  }
+  getSenders() {
+    return this.tracks.map(([track], i) => ({
+      track,
+      replaceTrack: async (next: FakeTrack) => {
+        this.replaced.push(next);
+        this.tracks[i] = [next, this.tracks[i]![1]];
+      },
+    }));
   }
   async createOffer() {
     if (this.failOffer) throw new Error("no offer");
@@ -95,7 +119,15 @@ export class FakePeer {
 /** Let promises that are already resolved run their callbacks. */
 export const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
+export interface FakeDevice {
+  kind: "videoinput" | "audioinput";
+  deviceId: string;
+  label: string;
+}
+
 export interface FakeMedia {
+  /** What is plugged in. Change it, then call `plugged()` to tell the page. */
+  devices: FakeDevice[];
   /** Every call to getUserMedia. */
   asked: unknown[];
   /** Streams handed out. */
@@ -103,18 +135,49 @@ export interface FakeMedia {
 }
 
 /** Install a fake camera (or a blocked one) and a fake RTCPeerConnection for the current test. */
-export function installFakeMedia(options: { deny?: boolean } = {}): FakeMedia {
-  const media: FakeMedia = { asked: [], streams: [] };
+export function installFakeMedia(
+  options: { deny?: boolean; devices?: FakeDevice[] } = {},
+): FakeMedia {
+  const devices: FakeDevice[] = options.devices ?? [
+    { kind: "videoinput", deviceId: "cam-a", label: "Integrated Camera" },
+    { kind: "audioinput", deviceId: "mic-a", label: "Microphone Array" },
+  ];
+  const media: FakeMedia = { devices, asked: [], streams: [] };
   FakePeer.instances = [];
   FakePeer.failOffers = false;
   const getUserMedia = vi.fn(async (constraints: unknown) => {
     media.asked.push(constraints);
     if (options.deny) throw new DOMException("Permission denied", "NotAllowedError");
+    const c = constraints as {
+      video?: true | { deviceId?: { exact?: string } };
+      audio?: true | { deviceId?: { exact?: string } };
+    };
+    const find = (kind: FakeDevice["kind"], want?: true | { deviceId?: { exact?: string } }) => {
+      const exact = typeof want === "object" ? want.deviceId?.exact : undefined;
+      return exact
+        ? devices.find((d) => d.kind === kind && d.deviceId === exact)
+        : devices.find((d) => d.kind === kind);
+    };
     const stream = new FakeStream();
+    stream.tracks = [];
+    if (c.video) {
+      const d = find("videoinput", c.video);
+      if (!d) throw new DOMException("Requested device not found", "NotFoundError");
+      stream.tracks.push(new FakeTrack("video", d.label, d.deviceId));
+    }
+    if (c.audio) {
+      const d = find("audioinput", c.audio);
+      if (!d) throw new DOMException("Requested device not found", "NotFoundError");
+      stream.tracks.push(new FakeTrack("audio", d.label, d.deviceId));
+    }
     media.streams.push(stream);
     return stream;
   });
-  Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia } });
+  const enumerateDevices = vi.fn(async () => devices.map((d) => ({ ...d })));
+  Object.defineProperty(navigator, "mediaDevices", {
+    configurable: true,
+    value: { getUserMedia, enumerateDevices, addEventListener() {}, removeEventListener() {} },
+  });
   vi.stubGlobal("RTCPeerConnection", FakePeer);
   return media;
 }

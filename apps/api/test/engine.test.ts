@@ -3,10 +3,15 @@ import {
   AGE_BAN_HOURS,
   FLOOD_MAX,
   FLOOD_WINDOW_MS,
+  GAME_INVITE_GAP_MS,
+  MAX_GAME_MESSAGES,
+  MAX_REACTIONS,
+  REACTION_GAP_MS,
   MAX_SIGNALS,
   SKIP_MS,
 } from "../src/chat/engine.js";
 import { FALLBACK_MS, REMATCH_MS } from "../src/chat/matching.js";
+import { parseClientMessage } from "@passerby/shared";
 import { world } from "./chat-helpers.js";
 
 beforeEach(() => {
@@ -526,6 +531,38 @@ describe("video setup messages", () => {
     expect(b.got.filter((m) => m.t === "sig")).toHaveLength(MAX_SIGNALS);
   });
 
+  it("tells the other person when a camera looks virtual, and only them", async () => {
+    const { w, a, b } = await pair("video");
+    const c = w.person("c");
+    await c.hello({ mode: "video" });
+    await a.say({ t: "cam", virtual: true });
+    expect(b.take("cam")).toEqual({ t: "cam", virtual: true });
+    expect(a.take("cam")).toBeUndefined();
+    expect(c.take("cam")).toBeUndefined();
+    await b.say({ t: "cam", virtual: false });
+    expect(a.take("cam")).toEqual({ t: "cam", virtual: false });
+  });
+
+  it("does not pass camera notices in a text chat, or outside a chat", async () => {
+    const t = await pair("text");
+    await t.a.say({ t: "cam", virtual: true });
+    expect(t.b.take("cam")).toBeUndefined();
+
+    const w = world();
+    const a = w.person("a"),
+      b = w.person("b");
+    await a.hello({ mode: "video" });
+    await b.hello({ mode: "video" });
+    await a.say({ t: "cam", virtual: true }); // not matched yet
+    expect(b.take("cam")).toBeUndefined();
+  });
+
+  it("limits camera notices together with setup messages", async () => {
+    const { a, b } = await pair("video");
+    for (let i = 0; i < MAX_SIGNALS + 50; i++) await a.say({ t: "cam", virtual: i % 2 === 0 });
+    expect(b.got.filter((m) => m.t === "cam")).toHaveLength(MAX_SIGNALS);
+  });
+
   it("treats everyone as text when video is switched off", async () => {
     const { a, b } = await pair("video", { videoEnabled: false });
     await a.say({ t: "sig", d: offer });
@@ -543,5 +580,193 @@ describe("video setup messages", () => {
     await tick(30_000);
     expect(t.take("matched")).toBeUndefined();
     expect(v.take("matched")).toBeUndefined();
+  });
+});
+
+describe("games", () => {
+  async function chatting(mode: "text" | "video" = "text") {
+    const w = world();
+    const a = w.person("a"),
+      b = w.person("b");
+    await a.hello({ mode });
+    await b.hello({ mode });
+    await a.find();
+    await b.find();
+    a.take("matched");
+    b.take("matched");
+    return { w, a, b };
+  }
+  const invite = { t: "game", g: { k: "invite", game: "ttt", seed: 7 } } as const;
+
+  it("passes invitations, answers and moves between the two people, in both directions", async () => {
+    const { a, b } = await chatting();
+    await a.say(invite);
+    expect(b.take("game")).toEqual({ t: "game", g: { k: "invite", game: "ttt", seed: 7 } });
+    await b.say({ t: "game", g: { k: "accept" } });
+    expect(a.take("game")?.g).toEqual({ k: "accept" });
+    await a.say({ t: "game", g: { k: "move", r: 0, v: 4 } });
+    expect(b.take("game")?.g).toEqual({ k: "move", r: 0, v: 4 });
+    expect(a.take("game")).toBeUndefined(); // never echoed back to the sender
+  });
+
+  it("works in video chats too", async () => {
+    const { a, b } = await chatting("video");
+    await a.say(invite);
+    expect(b.take("game")).toBeDefined();
+  });
+
+  it("does not pass anything before a chat, after leaving, or to anyone else", async () => {
+    const w = world();
+    const a = w.person("a"),
+      b = w.person("b"),
+      c = w.person("c");
+    await a.say(invite); // no hello yet
+    await a.hello();
+    await b.hello();
+    await c.hello();
+    await a.say(invite); // not matched yet
+    await a.find();
+    await b.find();
+    b.take("matched");
+    expect(b.take("game")).toBeUndefined();
+    await a.say(invite);
+    expect(b.take("game")).toBeDefined();
+    expect(c.take("game")).toBeUndefined();
+    await a.say({ t: "stop" });
+    await tick(GAME_INVITE_GAP_MS + 1000);
+    await a.say(invite); // the chat is over
+    expect(b.take("game")).toBeUndefined();
+  });
+
+  it("spaces one person's invitations out, but not the other person's", async () => {
+    const { a, b } = await chatting();
+    await a.say(invite);
+    expect(b.take("game")).toBeDefined();
+    await a.say(invite); // too soon
+    expect(b.take("game")).toBeUndefined();
+    await b.say(invite); // their own clock
+    expect(a.take("game")).toBeDefined();
+    await tick(GAME_INVITE_GAP_MS + 1);
+    await a.say(invite);
+    expect(b.take("game")).toBeDefined();
+  });
+
+  it("does not space out moves, only invitations", async () => {
+    const { a, b } = await chatting();
+    for (let r = 0; r < 5; r++) await a.say({ t: "game", g: { k: "move", r, v: r } });
+    expect(b.got.filter((m) => m.t === "game")).toHaveLength(5);
+  });
+
+  it("stops relaying after a generous limit, so the channel cannot be flooded", async () => {
+    const { a, b } = await chatting();
+    for (let i = 0; i < MAX_GAME_MESSAGES + 50; i++) {
+      await a.say({ t: "game", g: { k: "move", r: 0, v: i % 9 } });
+    }
+    expect(b.got.filter((m) => m.t === "game")).toHaveLength(MAX_GAME_MESSAGES);
+  });
+
+  describe("lines of text in a game", () => {
+    const say = (i: number, text: string) => ({ t: "game", g: { k: "say", i, text } }) as const;
+
+    it("are delivered trimmed, like a message but as part of the game", async () => {
+      const { a, b } = await chatting();
+      await a.say(say(1, "  I have a twin  "));
+      expect(b.take("game")?.g).toEqual({ k: "say", i: 1, text: "I have a twin" });
+      expect(b.take("msg")).toBeUndefined();
+    });
+
+    it("are kept for a moderator exactly like chat messages", async () => {
+      const w = world();
+      const a = w.person("a", "visitor-a"),
+        b = w.person("b", "visitor-b");
+      await a.hello();
+      await b.hello();
+      await a.find();
+      await b.find();
+      a.take("matched");
+      b.take("matched");
+      await a.say(say(0, "something nasty"));
+      await b.say({ t: "report", reason: "harassment" });
+      expect(w.reports.filed[0]!.transcript).toEqual([{ who: "reported", x: "something nasty" }]);
+    });
+
+    it("count towards the flood limit, and the rest are not delivered", async () => {
+      const { a, b } = await chatting();
+      for (let i = 0; i < 6; i++) await a.say(say(0, `line ${i}`));
+      await a.say(say(1, "one too many"));
+      expect(b.got.filter((m) => m.t === "game")).toHaveLength(6);
+      expect(a.take("error")).toMatchObject({ code: "too_fast" });
+    });
+
+    it("are not delivered, and the person is removed, if they say they are under 18", async () => {
+      const { w, a, b } = await chatting();
+      await a.say(say(0, "i'm 15"));
+      await tick(0);
+      expect(b.take("game")).toBeUndefined();
+      expect(w.reports.filed[0]).toMatchObject({ reason: "underage" });
+    });
+  });
+
+  it("refuses game messages that are the wrong shape before they reach the engine", () => {
+    const ok = (g: unknown) => parseClientMessage(JSON.stringify({ t: "game", g })) !== null;
+    expect(ok({ k: "move", r: 0, v: 8 })).toBe(true);
+    expect(ok({ k: "move", r: 0, v: 99 })).toBe(false);
+    expect(ok({ k: "move", r: 99, v: 0 })).toBe(false);
+    expect(ok({ k: "invite", game: "poker", seed: 1 })).toBe(false);
+    expect(ok({ k: "invite", game: "rps", seed: -1 })).toBe(false);
+    expect(ok({ k: "nope" })).toBe(false);
+  });
+});
+
+describe("reactions", () => {
+  async function chatting() {
+    const w = world();
+    const a = w.person("a");
+    const b = w.person("b");
+    await a.hello();
+    await b.hello();
+    await a.find();
+    await b.find();
+    a.take("matched");
+    b.take("matched");
+    return { w, a, b };
+  }
+
+  it("relays a reaction to the other person, and spaces them out", async () => {
+    const { a, b } = await chatting();
+    await a.say({ t: "react", e: "🔥" });
+    expect(b.take("react")).toEqual({ t: "react", e: "🔥" });
+    await a.say({ t: "react", e: "❤️" }); // too soon
+    expect(b.got.filter((m) => m.t === "react")).toEqual([]);
+    await tick(REACTION_GAP_MS + 1);
+    await a.say({ t: "react", e: "❤️" });
+    expect(b.take("react")).toEqual({ t: "react", e: "❤️" });
+    await b.say({ t: "react", e: "👋" }); // the other person has their own gap
+    expect(a.take("react")).toEqual({ t: "react", e: "👋" });
+  });
+
+  it("does nothing before a chat or after it ends, and stops at the limit", async () => {
+    const w = world();
+    const a = w.person("a");
+    await a.hello();
+    await a.say({ t: "react", e: "🔥" });
+    const { a: c, b: d } = await chatting();
+    for (let i = 0; i < MAX_REACTIONS + 5; i++) {
+      await c.say({ t: "react", e: "😂" });
+      await tick(REACTION_GAP_MS + 1);
+    }
+    expect(d.got.filter((m) => m.t === "react")).toHaveLength(MAX_REACTIONS);
+    await c.say({ t: "stop" });
+    d.got.length = 0;
+    await c.say({ t: "react", e: "🔥" });
+    expect(d.got.filter((m) => m.t === "react")).toEqual([]);
+  });
+
+  it("refuses an emoji that is not on the list", () => {
+    expect(parseClientMessage(JSON.stringify({ t: "react", e: "💩" }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ t: "react", e: "🔥" }))).toEqual({
+      t: "react",
+      e: "🔥",
+    });
   });
 });

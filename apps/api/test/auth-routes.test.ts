@@ -120,6 +120,7 @@ describe("creating an account", () => {
     expect(Object.keys(res.body.user).sort()).toEqual([
       "createdAt",
       "email",
+      "gender",
       "google",
       "hasPassword",
       "name",

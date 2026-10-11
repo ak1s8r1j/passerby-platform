@@ -140,7 +140,7 @@ describe("Google accounts in Postgres", () => {
     const accounts = realAccounts();
     const email = freshEmail();
     await accounts.register(
-      { email, name: "Sam", password: "correct horse", adult: true },
+      { email, name: "Sam", password: "correct horse", gender: "m", adult: true },
       "gv-existing",
     );
     const p = profile({ email });

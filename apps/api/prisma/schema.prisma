@@ -16,6 +16,8 @@ model User {
   /// Google's permanent ID for this person (the "sub" in their login token), once they have signed in with Google.
   googleSub      String?   @unique
   displayName    String
+  /// How they say they identify: "m" or "f". Empty if they chose not to say.
+  gender         String?
   /// argon2id hash. The password itself is never stored. Empty for someone who only signs in with Google.
   passwordHash   String?
   createdAt      DateTime  @default(now())

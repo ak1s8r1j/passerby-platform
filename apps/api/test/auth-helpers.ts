@@ -34,6 +34,7 @@ export class MemoryUsers implements UserStore {
     const user: UserRecord = {
       id: randomUUID().replace(/-/g, "").slice(0, 25),
       googleSub: null,
+      gender: null,
       ...data,
       createdAt: new Date(),
       lastLoginAt: null,
@@ -55,6 +56,11 @@ export class MemoryUsers implements UserStore {
     const u = this.users.get(id)!;
     u.passwordHash = passwordHash;
     u.sessionVersion++;
+    return u;
+  }
+  async setGender(id: string, gender: "m" | "f" | null) {
+    const u = this.users.get(id)!;
+    u.gender = gender;
     return u;
   }
   async setGoogleSub(id: string, sub: string | null) {
@@ -128,5 +134,6 @@ export const SAM = {
   email: "sam@example.com",
   name: "Sam",
   password: "correct horse",
+  gender: "m" as const,
   adult: true as const,
 };

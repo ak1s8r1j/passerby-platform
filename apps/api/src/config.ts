@@ -32,6 +32,26 @@ const EnvSchema = z
     GOOGLE_TOKEN_URL: optional(z.url()),
     GOOGLE_JWKS_URL: optional(z.url()),
     GOOGLE_ISSUER: optional(z.string()),
+    /** Show the Sign in / account link in the header. Off hides it; /account and everything behind it still work. */
+    ACCOUNT_LINK: z
+      .preprocess((v) => (v === "" ? undefined : v), z.enum(["true", "false"]).default("false"))
+      .transform((v) => v === "true"),
+    /** The admin area's sign-in. With no ADMIN_KEY the admin area is switched off. */
+    ADMIN_USER: z.preprocess(
+      (v) => (v === "" ? undefined : v),
+      z.string().min(1).max(100).default("admin"),
+    ),
+    ADMIN_KEY: optional(z.string().min(12, "ADMIN_KEY must be at least 12 characters")),
+    /** How long the activity log is kept. */
+    EVENT_RETENTION_DAYS: z.preprocess(
+      (v) => (v === "" ? undefined : v),
+      z.coerce.number().int().min(1).max(3650).default(30),
+    ),
+    /** How long reports, with their saved messages, are kept. */
+    REPORT_RETENTION_DAYS: z.preprocess(
+      (v) => (v === "" ? undefined : v),
+      z.coerce.number().int().min(1).max(3650).default(90),
+    ),
     /** Set to "false" to switch video chat off for everyone. */
     VIDEO_ENABLED: z
       .enum(["true", "false"])

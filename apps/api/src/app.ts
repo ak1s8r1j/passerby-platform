@@ -19,11 +19,23 @@ export interface AppDeps {
   online(): number;
   /** Sign-up, sign-in and account settings, mounted at /api/v1/auth. Left out in tests that do not need accounts. */
   auth?: Router;
+  /** The owner's admin area, mounted at /api/v1/admin. */
+  admin?: Router;
+  /** Called when a request fails for a reason that is our fault (so it can go in the activity log). */
+  onServerError?: (err: unknown) => void;
 }
 
 const apiError = (code: string, message: string): ErrorResponse => ({ error: { code, message } });
 
-export function createApp({ config, logger, health, online, auth }: AppDeps): Express {
+export function createApp({
+  config,
+  logger,
+  health,
+  online,
+  auth,
+  admin,
+  onServerError,
+}: AppDeps): Express {
   const app = express();
   app.disable("x-powered-by");
   // Railway and most hosts sit behind one proxy. This makes req.ip the visitor, not the proxy.
@@ -35,8 +47,8 @@ export function createApp({ config, logger, health, online, auth }: AppDeps): Ex
         useDefaults: true,
         directives: {
           "connect-src": ["'self'", "ws:", "wss:"],
-          "style-src": ["'self'", "https://fonts.googleapis.com"],
-          "font-src": ["'self'", "https://fonts.gstatic.com"],
+          "style-src": ["'self'"],
+          "font-src": ["'self'"],
         },
       },
     }),
@@ -76,11 +88,13 @@ export function createApp({ config, logger, health, online, auth }: AppDeps): Ex
       iceServers: iceServers(config),
       name: config.SITE_NAME,
       contact: config.CONTACT_EMAIL ?? null,
+      accountLink: config.ACCOUNT_LINK,
       googleSignIn: Boolean(config.GOOGLE_CLIENT_ID),
     };
     res.json(body);
   });
   if (auth) api.use("/auth", auth);
+  if (admin) api.use("/admin", admin);
   api.use((_req, res) => {
     res.status(404).json(apiError("not_found", "There is no such API route."));
   });
@@ -95,7 +109,11 @@ export function createApp({ config, logger, health, online, auth }: AppDeps): Ex
       express.static(join(dist, "assets"), { immutable: true, maxAge: "1y", fallthrough: false }),
     );
     app.use(express.static(dist, { index: false, maxAge: "5m" }));
-    app.get(/^(?!\/(api|ws)\b).*/, (_req, res) => {
+    app.get(/^(?!\/(api|ws)\b).*/, (req, res) => {
+      // The admin pages are for the owner alone: keep them out of search engines.
+      if (req.path === "/admin" || req.path.startsWith("/admin/")) {
+        res.setHeader("x-robots-tag", "noindex, nofollow");
+      }
       res.sendFile(join(dist, "index.html"));
     });
   }
@@ -110,6 +128,7 @@ export function createApp({ config, logger, health, online, auth }: AppDeps): Ex
       return void res.status(status).json(apiError(code, message));
     }
     logger.error({ err }, "unhandled error");
+    onServerError?.(err);
     res.status(500).json(apiError("internal", "Something went wrong."));
   };
   app.use(onError);

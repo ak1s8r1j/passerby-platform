@@ -28,6 +28,12 @@ describe("parseClientMessage", () => {
     expect(parseClientMessage(hello({ lang: "fr", gender: "f", mode: "video" }))).not.toBeNull();
     expect(parseClientMessage(hello({ lang: "xx" }))).toBeNull();
     expect(parseClientMessage(hello({ gender: "x" }))).toBeNull();
+    expect(parseClientMessage(hello({ seek: "m", gender: "f" }))).toMatchObject({
+      seek: "m",
+      gender: "f",
+    });
+    expect(parseClientMessage(hello({ seek: "both" }))).toBeNull(); // "anyone" is leaving it out
+    expect(parseClientMessage(hello({ seek: "" }))).toBeNull();
     expect(parseClientMessage(hello({ mode: "hologram" }))).toBeNull();
   });
 

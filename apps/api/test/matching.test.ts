@@ -8,6 +8,8 @@ const seeker = (id: string, over: Partial<Seeker> = {}): Seeker => ({
   mode: "text",
   tags: [],
   lang: "",
+  gender: "",
+  seek: "",
   queuedAt: NOW,
   lastPartner: "",
   blocked: new Set(),

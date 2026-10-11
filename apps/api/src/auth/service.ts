@@ -98,6 +98,7 @@ export class Accounts {
       user = await store.create({
         email: input.email,
         displayName: input.name,
+        gender: input.gender,
         passwordHash,
         signupRef: visitor,
       });
@@ -322,6 +323,7 @@ export class Accounts {
         premiumUntil: user.premiumUntil?.toISOString() ?? null,
         hasPassword: user.passwordHash !== null,
         googleConnected: user.googleSub !== null,
+        gender: user.gender,
       },
       note: "This is everything stored about your account. Chats are not stored.",
     };
@@ -334,7 +336,15 @@ export class Accounts {
       createdAt: user.createdAt.toISOString(),
       hasPassword: user.passwordHash !== null,
       google: user.googleSub !== null,
+      gender: user.gender === "m" || user.gender === "f" ? user.gender : null,
     };
+  }
+
+  /** Change how they identify. The answer itself is not written to the activity log. */
+  async setGender(user: UserRecord, choice: "m" | "f", visitor: string): Promise<UserRecord> {
+    const updated = await this.deps.store.setGender(user.id, choice);
+    this.deps.events.record({ kind: "user", type: "profile_updated", visitor, detail: tag(user) });
+    return updated;
   }
 
   private async googleLogin(user: UserRecord, visitor: string): Promise<UserRecord> {

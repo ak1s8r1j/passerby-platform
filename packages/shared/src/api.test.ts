@@ -5,9 +5,16 @@ import {
   LoginRequest,
   RegisterRequest,
   SiteConfig,
+  UpdateProfileRequest,
 } from "./api.js";
 
-const good = { email: "sam@example.com", name: "Sam", password: "correct horse", adult: true };
+const good = {
+  email: "sam@example.com",
+  name: "Sam",
+  password: "correct horse",
+  gender: "m",
+  adult: true,
+};
 const register = (over: Record<string, unknown>) => RegisterRequest.safeParse({ ...good, ...over });
 const message = (r: ReturnType<typeof register>) => (r.success ? null : r.error.issues[0]?.message);
 
@@ -20,6 +27,26 @@ describe("RegisterRequest", () => {
     const r = register({ email: "  Sam@Example.COM ", name: "  Sam   Q  Public " });
     expect(r.success && r.data.email).toBe("sam@example.com");
     expect(r.success && r.data.name).toBe("Sam Q Public");
+  });
+
+  it.each(["m", "f"])("accepts %j as how someone identifies", (gender) => {
+    expect(register({ gender }).success).toBe(true);
+  });
+
+  it.each([
+    undefined,
+    "",
+    "x",
+    "male",
+    "female",
+    "other",
+    "none",
+    "prefer-not-to-say",
+    null,
+    1,
+    true,
+  ])("refuses %j as how someone identifies, asking them to choose", (gender) => {
+    expect(message(register({ gender }))).toBe("Choose how you identify.");
   });
 
   it("insists on the 18+ confirmation", () => {
@@ -89,7 +116,13 @@ describe("RegisterRequest", () => {
 
   it("drops fields it does not know, so a request cannot set things like premium", () => {
     const r = register({ premiumUntil: "2999-01-01", isAdmin: true });
-    expect(r.success && Object.keys(r.data).sort()).toEqual(["adult", "email", "name", "password"]);
+    expect(r.success && Object.keys(r.data).sort()).toEqual([
+      "adult",
+      "email",
+      "gender",
+      "name",
+      "password",
+    ]);
   });
 });
 
@@ -132,5 +165,35 @@ describe("SiteConfig", () => {
     const c = SiteConfig.parse({ video: true, iceServers: [] });
     expect(c.name).toBe("Passerby");
     expect(c.contact).toBeNull();
+  });
+});
+
+describe("UpdateProfileRequest", () => {
+  it("takes the same two answers as sign-up", () => {
+    for (const gender of ["m", "f"]) {
+      expect(UpdateProfileRequest.safeParse({ gender }).success).toBe(true);
+    }
+  });
+
+  it("refuses anything else, and an empty request", () => {
+    for (const body of [
+      {},
+      { gender: "" },
+      { gender: "x" },
+      { gender: "none" },
+      { gender: null },
+      { gender: 3 },
+    ]) {
+      expect(UpdateProfileRequest.safeParse(body).success).toBe(false);
+    }
+  });
+
+  it("drops fields it does not know, so it cannot be used to change anything else", () => {
+    const r = UpdateProfileRequest.safeParse({
+      gender: "m",
+      premiumUntil: "2999-01-01",
+      email: "x@y.z",
+    });
+    expect(r.success && Object.keys(r.data)).toEqual(["gender"]);
   });
 });

@@ -1,6 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ChangePasswordRequest, RegisterRequest, type PublicUser } from "@passerby/shared";
+import {
+  ChangePasswordRequest,
+  RegisterRequest,
+  type GenderChoice,
+  type PublicUser,
+} from "@passerby/shared";
 import * as api from "../api.js";
 import { useAuth } from "../auth/AuthContext.js";
 import { usePageTitle } from "../hooks/usePageTitle.js";
@@ -117,6 +122,8 @@ function SignedOut({ say }: { say: (n: Note | null) => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  /** Nothing is chosen at first, so it has to be answered on purpose. */
+  const [gender, setGender] = useState<GenderChoice | "">("");
   const [adult, setAdult] = useState(false);
 
   const pick = (m: "in" | "up") => {
@@ -135,7 +142,13 @@ function SignedOut({ say }: { say: (n: Note | null) => void }) {
   const submitUp = (e: FormEvent) => {
     e.preventDefault();
     // Check here first so the visitor gets the answer at once; the server checks again.
-    const parsed = RegisterRequest.safeParse({ email, name, password, adult: adult || undefined });
+    const parsed = RegisterRequest.safeParse({
+      email,
+      name,
+      password,
+      gender: gender || undefined,
+      adult: adult || undefined,
+    });
     if (!parsed.success) {
       say({ text: parsed.error.issues[0]?.message ?? "Check the form and try again.", bad: true });
       return;
@@ -233,6 +246,20 @@ function SignedOut({ say }: { say: (n: Note | null) => void }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+          <label htmlFor="up-gender">How do you identify?</label>
+          <select
+            id="up-gender"
+            value={gender}
+            onChange={(e) => setGender(e.target.value as GenderChoice | "")}
+          >
+            <option value="">Choose…</option>
+            <option value="m">Male</option>
+            <option value="f">Female</option>
+          </select>
+          <p className="hint">
+            It fills in &ldquo;I am&rdquo; when you chat, so people who choose who to talk to can
+            find you. You can change it later.
+          </p>
           <label className="chk">
             <input type="checkbox" checked={adult} onChange={(e) => setAdult(e.target.checked)} />
             <span>
@@ -329,6 +356,35 @@ function Profile({ user, say }: { user: PublicUser; say: (n: Note | null) => voi
         <a className="btn ghost" href={api.EXPORT_URL} download="my-data.json">
           Download my data
         </a>
+      </div>
+
+      <div className="card details">
+        <label htmlFor="pf-gender">How you identify</label>
+        <select
+          id="pf-gender"
+          value={user.gender ?? ""}
+          disabled={busy}
+          onChange={(e) =>
+            void run(async () => {
+              await api.updateProfile({ gender: e.target.value as GenderChoice });
+              await auth.refresh();
+              return { text: "Saved." };
+            })
+          }
+        >
+          {!user.gender && (
+            <option value="" disabled>
+              Choose…
+            </option>
+          )}
+          <option value="m">Male</option>
+          <option value="f">Female</option>
+        </select>
+        <p className="hint" role={user.gender ? undefined : "note"}>
+          {user.gender
+            ? "It fills in \u201cI am\u201d when you chat."
+            : "Please choose. It fills in \u201cI am\u201d when you chat, so people who choose who to talk to can find you."}
+        </p>
       </div>
 
       {(config.googleSignIn || user.google) && (

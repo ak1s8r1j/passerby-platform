@@ -33,7 +33,7 @@ describe("starting and matching", () => {
 
   it("says plainly when there is nothing in common", () => {
     const s = run([{ type: "start" }, server({ t: "matched", common: [], init: false })]);
-    expect(texts(s)).toEqual(["sys:You're connected. Say hi."]);
+    expect(texts(s)).toEqual(["sys:✨ You're now chatting with someone new"]);
   });
 
   it("ignores a late 'waiting' or 'matched' after the visitor pressed Stop", () => {
@@ -85,7 +85,7 @@ describe("chatting", () => {
     expect(s.phase).toBe("ended");
     expect(texts(s).at(-1)).toBe("sys:The stranger left.");
     expect(texts(s)).not.toContain("me:hello?");
-    expect(statusText(s, NOW, true)).toBe("Chat ended. Press Next to meet someone else.");
+    expect(statusText(s, NOW, true)).toBe("Chat ended. Press Skip to meet someone else.");
   });
 
   it("shows the server's error notices in the log (for example, sending too fast)", () => {

@@ -27,6 +27,8 @@ const button = (name: RegExp | string) => screen.getByRole("button", { name });
 const field = (label: RegExp | string) => screen.getByLabelText(label);
 const type = (label: RegExp | string, text: string) => userEvent.type(field(label), text);
 const googleLink = () => screen.queryByRole("link", { name: /Continue with Google/ });
+/** The button appears once the site's settings have arrived, which takes a moment. */
+const googleLinkReady = () => screen.findByRole("link", { name: /Continue with Google/ });
 
 describe("the Continue with Google button", () => {
   it("is not shown when the site has no Google sign-in set up", async () => {
@@ -38,14 +40,14 @@ describe("the Continue with Google button", () => {
   it("is shown on the sign-in tab and goes straight to the start address", async () => {
     open();
     await screen.findByRole("form", { name: "Sign in" });
-    expect(googleLink()).toHaveAttribute("href", "/api/v1/auth/google/start");
+    expect(await googleLinkReady()).toHaveAttribute("href", "/api/v1/auth/google/start");
   });
 
   it("on the sign-up tab, refuses to leave until the 18+ box is ticked", async () => {
     open();
     await screen.findByRole("form", { name: "Sign in" });
     await userEvent.click(button("Create account"));
-    await userEvent.click(googleLink()!);
+    await userEvent.click(await googleLinkReady());
     expect(await screen.findByRole("alert")).toHaveTextContent("Confirm that you are 18 or older.");
   });
 
@@ -54,7 +56,7 @@ describe("the Continue with Google button", () => {
     await screen.findByRole("form", { name: "Sign in" });
     await userEvent.click(button("Create account"));
     await userEvent.click(screen.getByRole("checkbox"));
-    expect(googleLink()).toHaveAttribute("href", "/api/v1/auth/google/start?adult=1");
+    expect(await googleLinkReady()).toHaveAttribute("href", "/api/v1/auth/google/start?adult=1");
   });
 });
 
@@ -142,8 +144,8 @@ describe("a password account", () => {
   it("offers Connect Google, pointing at the link flow", async () => {
     open("/account", FakeAccounts.signedInAs("Sam"));
     await screen.findByRole("heading", { name: "Sam" });
-    expect(screen.getByText("Google: not connected")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Connect Google/ })).toHaveAttribute(
+    expect(await screen.findByText("Google: not connected")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: /Connect Google/ })).toHaveAttribute(
       "href",
       "/api/v1/auth/google/start?link=1",
     );

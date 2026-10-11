@@ -40,6 +40,19 @@ export function prismaReports(db: Db): ReportSink {
         },
       });
     },
+    async reportersOf(visitor, hours) {
+      const rows = await db.report.findMany({
+        where: {
+          reported: visitor,
+          createdAt: { gte: new Date(Date.now() - hours * 3600e3) },
+          // automatic reports, and reports from the person's own address, never count
+          reporter: { notIn: ["system", visitor] },
+        },
+        distinct: ["reporter"],
+        select: { reporter: true },
+      });
+      return rows.length;
+    },
   };
 }
 

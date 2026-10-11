@@ -38,10 +38,16 @@ async function openSignUp() {
   return screen.getByRole("form", { name: "Create account" });
 }
 
-const fillSignUp = async (over: Partial<Record<"name" | "email" | "password", string>> = {}) => {
+const fillSignUp = async (
+  over: Partial<Record<"name" | "email" | "password" | "gender", string>> = {},
+) => {
   await type("Display name", over.name ?? "Sam");
   await type("Email", over.email ?? "sam@example.com");
   await type(/^Password/, over.password ?? "correct horse");
+  // Sign-up needs an answer. Pass gender: "" to leave it unanswered.
+  if (over.gender !== "") {
+    await userEvent.selectOptions(field("How do you identify?"), over.gender ?? "m");
+  }
 };
 
 describe("the header", () => {
@@ -122,6 +128,7 @@ describe("signing in", () => {
           email: "sam@example.com",
           password: "correct horse",
           google: false,
+          gender: null,
           createdAt: "2026-03-14T10:00:00.000Z",
         },
       }),
@@ -267,7 +274,13 @@ describe("creating an account", () => {
     expect(accounts.calls).toEqual([
       {
         path: "/register",
-        body: { email: "sam@example.com", name: "Sam Q", password: "correct horse", adult: true },
+        body: {
+          email: "sam@example.com",
+          name: "Sam Q",
+          password: "correct horse",
+          gender: "m",
+          adult: true,
+        },
       },
     ]);
     expect(screen.getByRole("link", { name: "Sam Q" })).toBeInTheDocument();

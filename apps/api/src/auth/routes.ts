@@ -5,6 +5,7 @@ import {
   DeleteAccountRequest,
   LoginRequest,
   RegisterRequest,
+  UpdateProfileRequest,
   type ErrorResponse,
   type MeResponse,
 } from "@passerby/shared";
@@ -200,6 +201,18 @@ export function createAuthRouter(deps: AuthRouterDeps): Router {
       const updated = await accounts.changePassword(user, input.password, input.next, visitor(req));
       startSession(req, res, updated); // this browser stays signed in; every other sign-in has just ended
       res.json({ ok: true });
+    }),
+  );
+
+  router.post(
+    "/profile",
+    handle(async (req, res) => {
+      const user = await current(req);
+      if (!user) return signInFirst(res);
+      const input = body(UpdateProfileRequest, req, res);
+      if (!input) return;
+      const updated = await accounts.setGender(user, input.gender, visitor(req));
+      res.json({ user: accounts.publicUser(updated) });
     }),
   );
 

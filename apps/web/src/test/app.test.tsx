@@ -22,12 +22,11 @@ afterEach(() => vi.unstubAllGlobals());
 describe("home page", () => {
   it("shows the pitch, both chat buttons and the live count", async () => {
     renderAt("/");
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/say hi/i);
-    expect(screen.getByRole("link", { name: /start text chat/i })).toHaveAttribute("href", "/text");
-    expect(screen.getByRole("link", { name: /start video chat/i })).toHaveAttribute(
-      "href",
-      "/video",
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      /say hi to a total stranger/i,
     );
+    expect(screen.getByRole("link", { name: /text chat/i })).toHaveAttribute("href", "/text");
+    expect(screen.getByRole("link", { name: /video chat/i })).toHaveAttribute("href", "/video");
     expect(await screen.findByText(/3 people here now/)).toBeInTheDocument();
   });
 
@@ -44,17 +43,17 @@ describe("home page", () => {
 
   it("offers video chat, and says so, when the server has video on", async () => {
     renderAt("/");
-    expect(screen.getByRole("link", { name: /start video chat/i })).toBeInTheDocument();
-    expect(screen.getByText(/text or video chat/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /video chat/i })).toBeInTheDocument();
+    expect(screen.getByText(/for a text or video chat/i)).toBeInTheDocument();
   });
 
   it("stops offering video chat when the server has switched it off", async () => {
     stubApi({ config: { video: false, iceServers: [] } });
     renderAt("/");
     await waitFor(() =>
-      expect(screen.queryByRole("link", { name: /start video chat/i })).not.toBeInTheDocument(),
+      expect(screen.queryByRole("link", { name: /video chat/i })).not.toBeInTheDocument(),
     );
-    expect(screen.getByRole("link", { name: /start text chat/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /text chat/i })).toBeInTheDocument();
     expect(screen.getByText(/for a text chat/i)).toBeInTheDocument();
   });
 

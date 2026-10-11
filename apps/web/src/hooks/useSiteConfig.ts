@@ -7,6 +7,7 @@ export const FALLBACK_CONFIG: SiteConfig = {
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   name: "Passerby",
   contact: null,
+  accountLink: false,
   googleSignIn: false,
 };
 

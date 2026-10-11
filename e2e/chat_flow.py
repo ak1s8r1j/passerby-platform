@@ -27,8 +27,12 @@ async def open_chat(br, scheme="light", vp=(1100, 800), tags=()):
     await pg.goto(B + "/text")
     await pg.click('button:has-text("18 or older")')
     await pg.wait_for_selector(".bar .btn.go:not([disabled])")
-    for t in tags:
-        await pg.fill("#tags", t); await pg.keyboard.press("Enter")
+    if tags:
+        await pg.click(".filter-pill")          # the interests live behind the "Smart Match" pill
+        await pg.click('[role=tab]:has-text("Preferences")')
+        for t in tags:
+            await pg.fill("#tags", t); await pg.keyboard.press("Enter")
+        await pg.keyboard.press("Escape")       # close the panel
     return pg
 
 status = lambda pg: pg.inner_text("#status")
@@ -40,7 +44,11 @@ async def main():
         br = await p.chromium.launch()
         a = await open_chat(br, tags=["Chess"])
         b = await open_chat(br, "dark", tags=["chess!"])
+        await a.click(".filter-pill")
+        await a.click('[role=tab]:has-text("Preferences")')
         ok(await a.locator(".chip").count() == 1, "interests become chips")
+        ok("chess" in await a.inner_text(".filter-pill"), "and the pill shows them")
+        await a.keyboard.press("Escape")
         await a.screenshot(path=SHOTS + "p1-setup.png")
 
         t0 = time.time()

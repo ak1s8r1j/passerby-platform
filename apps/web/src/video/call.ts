@@ -2,7 +2,7 @@ import type { IceServer, Signal } from "@passerby/shared";
 
 export const NOTE_CONNECTING = "Connecting video…";
 export const NOTE_FAILED =
-  "Video couldn't connect with this person. Press Next to try someone else.";
+  "Video couldn't connect with this person. Press Skip to try someone else.";
 
 export interface CallOptions {
   iceServers: IceServer[];
@@ -81,6 +81,12 @@ export class Call {
     } else {
       this.pending.push(d.c);
     }
+  }
+
+  /** Send a different camera or microphone to the other person, without reconnecting. */
+  async replaceTrack(track: MediaStreamTrack): Promise<void> {
+    const sender = this.peer?.getSenders().find((s) => s.track?.kind === track.kind);
+    await sender?.replaceTrack(track);
   }
 
   /** End the connection and clear the other person's picture. */

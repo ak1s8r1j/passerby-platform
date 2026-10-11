@@ -5,6 +5,8 @@ export interface UserRecord {
   id: string;
   email: string;
   displayName: string;
+  /** How they say they identify ("m" or "f"); null if they chose not to say. */
+  gender: string | null;
   /** Null for someone who only signs in with Google. */
   passwordHash: string | null;
   /** Google's permanent ID for the person, once they have signed in with Google. */
@@ -22,6 +24,7 @@ export interface UserRecord {
 export interface NewUser {
   email: string;
   displayName: string;
+  gender?: "m" | "f" | null;
   passwordHash: string | null;
   googleSub?: string | null;
   signupRef: string;
@@ -50,6 +53,8 @@ export interface UserStore {
   recordLogin(id: string): Promise<UserRecord>;
   /** Replace the password and bump the session version, which signs the account out everywhere. */
   setPassword(id: string, passwordHash: string): Promise<UserRecord>;
+  /** Change how they identify. */
+  setGender(id: string, gender: "m" | "f" | null): Promise<UserRecord>;
   /** Connect (or, with null, disconnect) a Google account. Throws DuplicateGoogleError if another account has it. */
   setGoogleSub(id: string, sub: string | null): Promise<UserRecord>;
   delete(id: string): Promise<void>;
@@ -91,6 +96,7 @@ export function prismaUsers(db: Db): UserStore {
         where: { id },
         data: { passwordHash, sessionVersion: { increment: 1 } },
       }),
+    setGender: async (id, gender) => await db.user.update({ where: { id }, data: { gender } }),
     async setGoogleSub(id, googleSub) {
       try {
         return await db.user.update({ where: { id }, data: { googleSub } });

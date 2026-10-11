@@ -5,7 +5,10 @@ import {
   type BanStore,
   type ReportInput,
   type ReportSink,
+  type StatCounter,
+  type StatsSink,
 } from "../src/chat/engine.js";
+import type { AppEvent, EventSink } from "../src/events.js";
 
 /** Bans held in memory, with the same expiry rule as the database version. */
 export class MemoryBans implements BanStore {
@@ -33,8 +36,42 @@ export class MemoryBans implements BanStore {
 
 export class MemoryReports implements ReportSink {
   filed: ReportInput[] = [];
+  private times: number[] = [];
   async file(r: ReportInput) {
     this.filed.push(r);
+    this.times.push(Date.now());
+  }
+  async reportersOf(visitor: string, hours: number) {
+    const since = Date.now() - hours * 3600e3;
+    const who = new Set<string>();
+    this.filed.forEach((r, i) => {
+      if (
+        r.reported === visitor &&
+        this.times[i]! >= since &&
+        r.reporter !== "system" &&
+        r.reporter !== visitor
+      )
+        who.add(r.reporter);
+    });
+    return who.size;
+  }
+}
+
+export class MemoryStats implements StatsSink {
+  counts: Partial<Record<StatCounter, number>> = {};
+  peak = 0;
+  add(counter: StatCounter, n = 1) {
+    this.counts[counter] = (this.counts[counter] ?? 0) + n;
+  }
+  online(n: number) {
+    this.peak = Math.max(this.peak, n);
+  }
+}
+
+export class MemoryEvents implements EventSink {
+  recorded: AppEvent[] = [];
+  record(e: AppEvent) {
+    this.recorded.push(e);
   }
 }
 
@@ -60,6 +97,8 @@ export function world(options: { videoEnabled?: boolean } = {}) {
   const closed: { id: string; code: number }[] = [];
   const bans = new MemoryBans();
   const reports = new MemoryReports();
+  const stats = new MemoryStats();
+  const events = new MemoryEvents();
   let presence = 0;
   const engine = new ChatEngine({
     transport: {
@@ -72,12 +111,14 @@ export function world(options: { videoEnabled?: boolean } = {}) {
     },
     bans,
     reports,
+    stats,
+    events,
     onPresence: () => presence++,
     ...options,
   });
 
-  const person = (id: string, visitor = id): Person => {
-    engine.connect(id, visitor);
+  const person = (id: string, visitor = id, country = ""): Person => {
+    engine.connect(id, visitor, country);
     const got = () => sent.get(id) ?? [];
     const p: Person = {
       id,
@@ -101,5 +142,5 @@ export function world(options: { videoEnabled?: boolean } = {}) {
     return p;
   };
 
-  return { engine, person, bans, reports, closed, presence: () => presence };
+  return { engine, person, bans, reports, stats, events, closed, presence: () => presence };
 }

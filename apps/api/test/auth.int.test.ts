@@ -36,6 +36,7 @@ const input = (email = fresh()) => ({
   email,
   name: "Sam",
   password: "correct horse",
+  gender: "m" as const,
   adult: true as const,
 });
 

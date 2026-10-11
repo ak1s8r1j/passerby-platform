@@ -47,6 +47,12 @@ export function Rules() {
       </ol>
       <h2>How the rules are enforced</h2>
       <p>
+        Use the Report button during a chat, or within a few minutes after it ends. The chat ends,
+        you won&rsquo;t be matched with that person again, and the last messages are saved for a
+        moderator to review. Three different people reporting the same person within a day pauses
+        that person for 24 hours automatically.
+      </p>
+      <p>
         Saying you are under 18 in a chat removes you for 24 hours straight away, and the last
         messages are saved for a moderator to review. Moderators can ban for longer.
       </p>
@@ -109,12 +115,16 @@ export function Privacy() {
         <li>
           <strong>Your IP address.</strong> We turn it into a scrambled ID that we can&rsquo;t
           reverse, and use it to limit abuse and make bans work. The address itself is not stored.
+          We also look up which country it is in, using a list kept on our own server (the address
+          is not sent to anyone), so you can choose which countries to talk to. Your country is
+          shown to the person you are matched with, as a country only, and is not stored.
         </li>
         <li>
           <strong>Text messages.</strong> They pass through our server to reach the other person.
-          The last 40 messages of a chat are kept in memory while it is open and then discarded,
-          unless the chat is reported or someone says they are under 18, in which case they are
-          saved so a moderator can review them.
+          The last 40 messages of a chat are kept in memory while it is open and for a few minutes
+          after it ends (so it can still be reported), then discarded. If the chat is reported, or
+          someone says they are under 18, those messages are saved with the report so a moderator
+          can review them, and deleted after a while (90 days unless the site says otherwise).
         </li>
         <li>
           <strong>Video and audio.</strong> They go directly between your browser and the other
@@ -122,23 +132,25 @@ export function Privacy() {
           IP address to the other person.
         </li>
         <li>
-          <strong>Your choices.</strong> Your interests, language and gender choice, and whether you
-          have confirmed you are 18 or older, are stored in your own browser. Your interests,
-          language and gender choice are sent to our server only to find you a match.
+          <strong>Your choices.</strong> Your interests, language, what you say you are and who you
+          want to talk to, and whether you have confirmed you are 18 or older, are stored in your
+          own browser. Your interests, language, gender and who you want to talk to are sent to our
+          server only to find you a match.
         </li>
         <li>
           <strong>Accounts (optional).</strong> If you make an account we store your email address,
-          display name, a hashed password (never the password itself), and when you registered and
-          last signed in. If you use Continue with Google instead, we store the email address and
-          name Google gives us, and Google&rsquo;s private ID for you, so we can recognise you next
-          time; we never see your Google password. Your account is never shown to the people you
-          chat with.
+          display name, how you say you identify (if you choose to say), a hashed password (never
+          the password itself), and when you registered and last signed in. If you use Continue with
+          Google instead, we store the email address and name Google gives us, and Google&rsquo;s
+          private ID for you, so we can recognise you next time; we never see your Google password.
+          Your account is never shown to the people you chat with.
         </li>
         <li>
           <strong>Activity log.</strong> We keep a log of events such as sign-ups, sign-ins, failed
           sign-ins, password changes and account deletions, labelled with a short form of your
           scrambled ID. It never contains your email address, your password or what you said, and it
-          is used to run and protect the service.
+          is used to run and protect the service, and old lines are deleted automatically (after 30
+          days unless the site says otherwise).
         </li>
         <li>
           <strong>Cookies.</strong> The only cookie we keep is a sign-in cookie, and only if you

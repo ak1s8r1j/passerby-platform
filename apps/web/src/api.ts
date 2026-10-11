@@ -7,6 +7,7 @@ import {
   type LoginRequest,
   type PublicUser,
   type RegisterRequest,
+  type UpdateProfileRequest,
 } from "@passerby/shared";
 
 /** Every API call goes through here, so responses are checked against the shared shapes. */
@@ -68,6 +69,9 @@ export const getMe = async (): Promise<PublicUser | null> =>
 
 export const register = async (body: RegisterRequest) =>
   user(await post("/api/v1/auth/register", body));
+/** Change how the account identifies. */
+export const updateProfile = async (body: UpdateProfileRequest) =>
+  user(await post("/api/v1/auth/profile", body));
 export const signIn = async (body: LoginRequest) => user(await post("/api/v1/auth/login", body));
 export const signOut = async () => void (await post("/api/v1/auth/logout"));
 export const changePassword = async (body: ChangePasswordRequest) =>

@@ -23,6 +23,11 @@ afterEach(() => vi.unstubAllGlobals());
 const status = () => screen.getByRole("status");
 const log = () => screen.getByRole("log");
 const button = (name: RegExp) => screen.getByRole("button", { name });
+/** The interests, language and gender choices are behind the "Smart Match" pill. */
+const openFilters = async () => {
+  await userEvent.click(button(/match filters/i));
+  await userEvent.click(screen.getByRole("tab", { name: "Preferences" }));
+};
 
 /** Open the text chat as someone who has already confirmed they are 18+, and let the server say ready. */
 async function openChat() {
@@ -110,6 +115,7 @@ describe("getting ready", () => {
 describe("interests, language and gender", () => {
   it("adds interests with Enter, cleans them, and sends them in the next hello", async () => {
     const server = await openChat();
+    await openFilters();
     await userEvent.type(screen.getByLabelText(/what do you want to talk about/i), "Music!{Enter}");
     await userEvent.type(screen.getByLabelText(/what do you want to talk about/i), "chess,");
     expect(screen.getByRole("button", { name: "Remove music" })).toBeInTheDocument();
@@ -122,6 +128,7 @@ describe("interests, language and gender", () => {
 
   it("offers suggestions until something is added, and removes a chip with a click", async () => {
     await openChat();
+    await openFilters();
     await userEvent.click(screen.getByRole("button", { name: "gaming" }));
     expect(screen.queryByRole("button", { name: "gaming" })).not.toBeInTheDocument(); // suggestions are gone
     await userEvent.click(screen.getByRole("button", { name: "Remove gaming" }));
@@ -130,6 +137,7 @@ describe("interests, language and gender", () => {
 
   it("won't take a duplicate or more than eight interests", async () => {
     await openChat();
+    await openFilters();
     const box = screen.getByLabelText(/what do you want to talk about/i);
     await userEvent.type(box, "a{Enter}A{Enter}");
     expect(screen.getAllByRole("button", { name: /^Remove / })).toHaveLength(1);
@@ -141,9 +149,11 @@ describe("interests, language and gender", () => {
 
   it("remembers choices for next time and sends language and gender", async () => {
     const server = await openChat();
+    await openFilters();
     await userEvent.type(screen.getByLabelText(/what do you want to talk about/i), "jazz{Enter}");
-    await userEvent.selectOptions(screen.getByLabelText("Language"), "fr");
     await userEvent.selectOptions(screen.getByLabelText("I am"), "f");
+    await userEvent.click(screen.getByRole("tab", { name: "Language" }));
+    await userEvent.click(screen.getByRole("button", { name: "French" }));
     await userEvent.click(button(/^start$/i));
     expect(server.of("hello").at(-1)).toEqual({
       t: "hello",
@@ -164,7 +174,7 @@ describe("finding someone", () => {
     await userEvent.click(button(/^start$/i));
     expect(status()).toHaveTextContent("Looking for someone…");
     expect(screen.getByRole("textbox", { name: /message/i })).toBeDisabled();
-    expect(button(/^next$/i)).toBeInTheDocument();
+    expect(button(/^skip/i)).toBeInTheDocument();
     server.receive({ t: "matched", common: ["music"], init: false });
     expect(await within(log()).findByText("You both like music. Say hi.")).toBeInTheDocument();
     expect(status()).toHaveTextContent("You're talking to a stranger");
@@ -198,6 +208,7 @@ describe("finding someone", () => {
     await userEvent.click(button(/^start$/i));
     await userEvent.click(button(/^stop$/i));
     expect(server.messages.at(-1)).toEqual({ t: "stop" });
+    await openFilters();
     expect(screen.getByLabelText(/what do you want to talk about/i)).toBeInTheDocument();
     expect(status()).toHaveTextContent("Ready when you are");
   });
@@ -241,9 +252,9 @@ describe("talking", () => {
     const server = await startAndMatch();
     server.receive({ t: "ended" });
     expect(await within(log()).findByText("The stranger left.")).toBeInTheDocument();
-    expect(status()).toHaveTextContent("Chat ended. Press Next to meet someone else.");
+    expect(status()).toHaveTextContent("Chat ended. Press Skip to meet someone else.");
     expect(screen.getByRole("textbox", { name: /message/i })).toBeDisabled();
-    await userEvent.click(button(/^next$/i));
+    await userEvent.click(button(/^skip/i));
     expect(server.messages.at(-1)).toEqual({ t: "find" });
     expect(within(log()).queryByText("The stranger left.")).not.toBeInTheDocument();
   });
@@ -298,7 +309,7 @@ describe("being removed", () => {
     expect(await within(log()).findByText(/Passerby is for adults only/)).toBeInTheDocument();
     expect(status()).toHaveTextContent("You can't chat right now");
     expect(button(/^start$/i)).toBeDisabled();
-    expect(screen.queryByRole("button", { name: /^next$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^skip/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^stop$/i })).not.toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /message/i })).toBeDisabled();
     expect(screen.getByPlaceholderText("You can't chat right now")).toBeInTheDocument();

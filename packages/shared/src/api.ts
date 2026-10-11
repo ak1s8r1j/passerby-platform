@@ -36,6 +36,8 @@ export const SiteConfig = z.object({
   name: z.string().default("Passerby"),
   /** Where people can write about bans, privacy or payments. Null when none is set. */
   contact: z.string().nullable().default(null),
+  /** Whether the header shows the Sign in / account link. Accounts still work when it is off. */
+  accountLink: z.boolean().default(false),
   /** Whether "Continue with Google" is switched on. */
   googleSignIn: z.boolean().default(false),
 });
@@ -56,6 +58,7 @@ const NAME_PATTERN = /^[\p{L}\p{N} ._-]+$/u;
 
 const MSG = {
   adult: "Confirm that you are 18 or older.",
+  gender: "Choose how you identify.",
   email: "Enter a valid email address.",
   name: `Pick a name of ${NAME_MIN} to ${NAME_MAX} letters, numbers or spaces.`,
   password: `Use a password of ${PASSWORD_MIN} to ${PASSWORD_MAX} characters.`,
@@ -82,10 +85,19 @@ export const NewPassword = z
   .min(PASSWORD_MIN, MSG.password)
   .max(PASSWORD_MAX, MSG.password);
 
+/**
+ * How someone identifies, asked when they make an account. It must be answered. A signed-in person's chat
+ * starts with "I am" filled in from it. (Accounts made before this was asked, and accounts made with Google,
+ * have no answer until their owner chooses one.)
+ */
+export const GenderChoice = z.enum(["m", "f"], MSG.gender);
+export type GenderChoice = z.infer<typeof GenderChoice>;
+
 export const RegisterRequest = z.object({
   email: EmailAddress,
   name: DisplayName,
   password: NewPassword,
+  gender: GenderChoice,
   adult: z.literal(true, MSG.adult),
 });
 export type RegisterRequest = z.infer<typeof RegisterRequest>;
@@ -124,6 +136,10 @@ export const DeleteAccountRequest = z
   });
 export type DeleteAccountRequest = z.infer<typeof DeleteAccountRequest>;
 
+/** Changing how you identify on an existing account (Google sign-ups choose theirs here). */
+export const UpdateProfileRequest = z.object({ gender: GenderChoice });
+export type UpdateProfileRequest = z.infer<typeof UpdateProfileRequest>;
+
 /** What an account looks like to its owner. The password hash never leaves the server. */
 export const PublicUser = z.object({
   name: z.string(),
@@ -134,6 +150,8 @@ export const PublicUser = z.object({
   hasPassword: z.boolean(),
   /** Whether a Google account is connected. */
   google: z.boolean(),
+  /** How they identify, or null if they chose not to say. */
+  gender: z.enum(["m", "f"]).nullable(),
 });
 export type PublicUser = z.infer<typeof PublicUser>;
 
