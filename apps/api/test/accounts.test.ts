@@ -281,6 +281,20 @@ describe("what an account owner sees", () => {
       "google",
       "hasPassword",
       "name",
+      "plus",
     ]);
+  });
+
+  it("says whether Plus is active right now, and nothing else about it", async () => {
+    const w = accountsWorld();
+    const user = await w.accounts.register(SAM, "v1");
+    expect(w.accounts.publicUser(user).plus).toBe(false);
+    const day = 24 * 60 * 60 * 1000;
+    expect(w.accounts.publicUser({ ...user, premiumUntil: new Date(Date.now() + day) }).plus).toBe(
+      true,
+    );
+    expect(w.accounts.publicUser({ ...user, premiumUntil: new Date(Date.now() - day) }).plus).toBe(
+      false,
+    );
   });
 });

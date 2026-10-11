@@ -55,6 +55,17 @@ describe("GET /api/v1/config", () => {
       contact: null,
       accountLink: false, // hidden unless the operator asks for it
       googleSignIn: false,
+      // on, but with nothing to draw until AdSense or sponsors are set up
+      ads: {
+        enabled: true,
+        client: null,
+        slots: { profile: null, landing: null },
+        sponsors: [],
+        rewarded: "none",
+        refreshSeconds: 0,
+      },
+      plusFilters: false, // the filters stay free until the operator makes them Plus
+      plusCheckout: false,
     });
   });
 

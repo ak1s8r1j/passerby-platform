@@ -28,6 +28,45 @@ export const IceServer = z.object({
 });
 export type IceServer = z.infer<typeof IceServer>;
 
+/**
+ * A sponsor's card in the text chat. The logo is an address on this site ("/sponsors/acme.png") or a small
+ * inline image, because the site's security policy only loads pictures from itself. The link must be https.
+ */
+export const Sponsor = z.object({
+  id: z.string().min(1).max(40),
+  /** The advertiser's name, used as the logo's description. */
+  name: z.string().min(1).max(60),
+  logo: z.string().min(1).max(4000),
+  /** One line. */
+  headline: z.string().min(1).max(80),
+  /** The button's text. */
+  cta: z.string().min(1).max(24),
+  url: z.url(),
+});
+export type Sponsor = z.infer<typeof Sponsor>;
+
+/** Everything about ads the browser needs. When `enabled` is false, no slot is drawn anywhere. */
+export const AdsConfig = z.object({
+  /** The one switch: false turns every ad off, including the rewarded one. */
+  enabled: z.boolean().default(false),
+  /** The AdSense publisher ID ("ca-pub-..."), or null when AdSense is not set up. */
+  client: z.string().nullable().default(null),
+  /** AdSense ad unit IDs, by place. A place with no ID shows nothing. */
+  slots: z
+    .object({
+      profile: z.string().nullable().default(null),
+      landing: z.string().nullable().default(null),
+    })
+    .default({ profile: null, landing: null }),
+  /** Cards for the text chat (at most one is shown per match). None means no card. */
+  sponsors: z.array(Sponsor).default([]),
+  /** Which rewarded video ad provider is wired in. "none" hides the "watch an ad" button. */
+  rewarded: z.enum(["none", "demo"]).default("none"),
+  /** Seconds between refreshes of the profile banner. 0 (the default) means it never refreshes. */
+  refreshSeconds: z.number().int().min(0).max(3600).default(0),
+});
+export type AdsConfig = z.infer<typeof AdsConfig>;
+
 /** What the browser needs to know before it starts: is video on, and which servers to use for it. */
 export const SiteConfig = z.object({
   video: z.boolean(),
@@ -40,6 +79,19 @@ export const SiteConfig = z.object({
   accountLink: z.boolean().default(false),
   /** Whether "Continue with Google" is switched on. */
   googleSignIn: z.boolean().default(false),
+  /** Ads, sponsors and the rewarded ad. */
+  ads: AdsConfig.default({
+    enabled: false,
+    client: null,
+    slots: { profile: null, landing: null },
+    sponsors: [],
+    rewarded: "none",
+    refreshSeconds: 0,
+  }),
+  /** Whether choosing a country or who to talk to needs Plus (or a rewarded unlock). */
+  plusFilters: z.boolean().default(false),
+  /** Whether Plus can be bought yet. Until it can, the Plus box says so instead of offering a trial. */
+  plusCheckout: z.boolean().default(false),
 });
 export type SiteConfig = z.infer<typeof SiteConfig>;
 
@@ -152,6 +204,8 @@ export const PublicUser = z.object({
   google: z.boolean(),
   /** How they identify, or null if they chose not to say. */
   gender: z.enum(["m", "f"]).nullable(),
+  /** Whether Plus is active right now. Left out (or false) for everyone else. */
+  plus: z.boolean().optional(),
 });
 export type PublicUser = z.infer<typeof PublicUser>;
 

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, Outlet, useOutletContext } from "react-router-dom";
+import { PlusProvider } from "../ads/PlusContext.js";
 import { useAuth } from "../auth/AuthContext.js";
 import { useLiveCount } from "../hooks/useLiveCount.js";
 import { useSiteConfig } from "../hooks/useSiteConfig.js";
@@ -21,7 +22,7 @@ export function Layout() {
   const { config } = useSiteConfig();
   const { theme, toggle } = useTheme();
   return (
-    <>
+    <PlusProvider>
       <a className="skip" href="#main">
         Skip to content
       </a>
@@ -73,6 +74,6 @@ export function Layout() {
         <Link to="/terms">Terms</Link>
         <Link to="/privacy">Privacy</Link>
       </footer>
-    </>
+    </PlusProvider>
   );
 }

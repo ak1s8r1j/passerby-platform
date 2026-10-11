@@ -29,6 +29,16 @@ export function stubApi(
           contact: null,
           accountLink: true, // the account tests look for it; the real server hides it unless asked
           googleSignIn: false,
+          ads: {
+            enabled: false,
+            client: null,
+            slots: { profile: null, landing: null },
+            sponsors: [],
+            rewarded: "none",
+            refreshSeconds: 0,
+          },
+          plusFilters: false,
+          plusCheckout: false,
           ...options.config,
         };
   const fetchFn = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {

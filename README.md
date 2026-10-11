@@ -150,6 +150,39 @@ docs/         architecture, roadmap, decisions
 
 [`railway.json`](railway.json) tells Railway to build the [`Dockerfile`](Dockerfile), run the migrations before each release, and check `/healthz`. Run one instance for now: matching is held in memory (see the roadmap).
 
+## Ads
+
+Ads are off for Plus members and for everyone when `ADS_ENABLED=false`, which is the one switch for all of them.
+Nothing is ever shown in video chat (desktop or phone), in the report box, between skips, or as a full-screen ad.
+
+| Place          | Where                                                                  | Size                                 | Setting                        |
+| -------------- | ---------------------------------------------------------------------- | ------------------------------------ | ------------------------------ |
+| Landing banner | under the feature row, desktop only (1024px and up)                    | 728x90                               | `ADSENSE_SLOT_LANDING`         |
+| Profile panel  | text chat, left panel, desktop only                                    | 300x250                              | `ADSENSE_SLOT_PROFILE`         |
+| Sponsored card | text chat, after the stranger's first message, once per match          | 420x80 (desktop), full width (phone) | `ADS_SPONSORS`                 |
+| Rewarded ad    | inside the Plus box, unlocks country and who-to-talk-to for 30 minutes | 16:9                                 | `REWARDED_ADS`, `PLUS_FILTERS` |
+
+- **AdSense:** set `ADSENSE_CLIENT` (`ca-pub-...`) and create one ad unit per banner in the AdSense console, then set
+  the unit IDs above. The site serves `/ads.txt` from the publisher ID, and the page carries the AdSense account
+  meta tag. Google's script is loaded lazily, only by a page that shows an AdSense unit, never in video chat; after
+  it has run, the landing page's Video button does a full page load so the script is left behind. The content
+  security policy is opened for Google's domains only when AdSense is set up. Turn **Auto ads off** in the AdSense
+  console: they would place ads wherever Google chooses.
+- **Reserved space:** each slot reserves its exact size, so the page does not move when the ad arrives. If the ad
+  can't load or Google has nothing to show, the box and its "ad" / "remove ads" labels disappear.
+- **Plus:** an account counts as Plus while `premiumUntil` is in the future. Payments are not connected yet
+  (`PLUS_CHECKOUT=false`), so the Plus box says it is coming soon. Until `PLUS_FILTERS=true`, country and
+  who-to-talk-to stay free for everyone.
+- **Rewarded ad:** AdSense has no rewarded video format for the web (that needs Google Ad Manager or an ad network's
+  SDK). `REWARDED_ADS=demo` plays a 5 second stand-in so the flow can be tried; `none` hides the button. A real
+  provider replaces the picture in `apps/web/src/ads/RewardedAd.tsx`.
+- **Sponsor cards:** `ADS_SPONSORS` is a JSON list of `{id, name, logo, headline, cta, url}`. Logos must be a path on
+  this site (put the file in `apps/web/public/sponsors/`) or a `data:image` URL, and links must be https.
+- **Refresh:** `ADS_REFRESH_SECONDS` (0 or 60+) refreshes the profile banner, only while the tab is visible. It is 0
+  by default because AdSense's own policy does not allow refreshing its units.
+- **Check it:** `e2e/ads_flow.py` replaces Google's script with a stand-in and checks every placement, size,
+  spacing rule and the unlock flow in real browsers (see the top of the file for how to start the app).
+
 ## Testing approach
 
 - **Shared:** the protocol and interest cleaning, including what must be refused (missing 18+ flag, bad languages, garbage).
@@ -168,6 +201,8 @@ BASE_URL=http://localhost:5173 python e2e/chat_flow.py
 BASE_URL=http://localhost:5173 python e2e/video_flow.py
 BASE_URL=http://localhost:5173 python e2e/account_flow.py
 BASE_URL=http://localhost:5173 python e2e/games_flow.py
+# ads: the built app served by the API with ads settings (see the top of the file)
+BASE_URL=http://localhost:3200 python e2e/ads_flow.py
 BASE_URL=http://localhost:5173 python e2e/admin_flow.py     # needs ADMIN_KEY, see below
 # e2e/google_flow.py needs the stand-in Google: see "Sign in with Google"
 ```

@@ -337,6 +337,7 @@ export class Accounts {
       hasPassword: user.passwordHash !== null,
       google: user.googleSub !== null,
       gender: user.gender === "m" || user.gender === "f" ? user.gender : null,
+      plus: user.premiumUntil !== null && user.premiumUntil.getTime() > Date.now(),
     };
   }
 

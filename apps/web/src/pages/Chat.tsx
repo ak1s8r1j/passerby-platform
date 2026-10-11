@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useEffect,
   useReducer,
   useRef,
@@ -21,6 +22,9 @@ import {
   type ReportReason,
   type ServerMessage,
 } from "@passerby/shared";
+import { AdSlot } from "../ads/AdSlot.js";
+import { usePlus } from "../ads/PlusContext.js";
+import { SponsoredCard } from "../ads/SponsoredCard.js";
 import { useAuth } from "../auth/AuthContext.js";
 import { useLayout } from "../components/Layout.js";
 import { FilterPopover, summarizeFilters } from "../components/FilterPopover.js";
@@ -145,6 +149,14 @@ function Conversation({ mode, iceServers }: { mode: ChatMode; iceServers: IceSer
   const [gender, setGender] = useStoredState<Prefs["gender"]>("me", "", isGender);
   const [seek, setSeek] = useStoredState<Prefs["seek"]>("seek", "", isGender);
   const [countries, setCountries] = useStoredState<CountryCode[]>("countries", [], isCountries);
+  const { config } = useSiteConfig();
+  const { adsVisible, filtersLocked, openPlus } = usePlus();
+  // While country and who-to-talk-to are locked they are not applied, and any that were saved are dropped.
+  useEffect(() => {
+    if (!filtersLocked) return;
+    if (countries.length) setCountries([]);
+    if (seek) setSeek("");
+  }, [filtersLocked, countries, seek, setCountries, setSeek]);
 
   // Someone signed in who said how they identify starts with "I am" filled in. Their own choice here, once
   // made (even "Rather not say"), is never overwritten.
@@ -464,6 +476,14 @@ function Conversation({ mode, iceServers }: { mode: ChatMode; iceServers: IceSer
           ? "Looking for someone…"
           : "");
 
+  // The sponsored card: text chat only, one per match, right after the stranger's first message. The match's
+  // first message has an id nobody else shares, so the same sponsor stays in place as the chat grows.
+  const firstFromThem = isVideo ? -1 : state.lines.findIndex((l) => l.kind === "them");
+  const sponsor =
+    adsVisible && firstFromThem >= 0 && config.ads.sponsors.length > 0
+      ? config.ads.sponsors[state.lines[firstFromThem]!.id % config.ads.sponsors.length]
+      : undefined;
+
   const classes = [
     "chat",
     isVideo && "video",
@@ -530,6 +550,7 @@ function Conversation({ mode, iceServers }: { mode: ChatMode; iceServers: IceSer
           <p className="peer-looking">
             {summarizeFilters({ tags, lang, gender, seek, countries })}
           </p>
+          <AdSlot slot="profile" width={300} height={250} desktopOnly />
           <p className="hint peer-safe">Be kind, and don&rsquo;t share personal details.</p>
         </aside>
       )}
@@ -577,6 +598,8 @@ function Conversation({ mode, iceServers }: { mode: ChatMode; iceServers: IceSer
               onLang={setLang}
               onGender={setGender}
               onSeek={setSeek}
+              locked={filtersLocked}
+              onLocked={openPlus}
             />
             {inChat && (
               <button
@@ -636,22 +659,24 @@ function Conversation({ mode, iceServers }: { mode: ChatMode; iceServers: IceSer
             </div>
           )}
           <div className="log" role="log" aria-live="polite" aria-label="Conversation">
-            {state.lines.map((l) => (
-              <p
-                key={l.id}
-                className={
-                  l.kind === "sys"
-                    ? `sys${l.warn ? " warn" : ""}`
-                    : `b ${l.kind === "me" ? "me" : "them"}`
-                }
-              >
-                {l.country && (
-                  <>
-                    <Flag code={l.country} round />{" "}
-                  </>
-                )}
-                {l.text}
-              </p>
+            {state.lines.map((l, i) => (
+              <Fragment key={l.id}>
+                <p
+                  className={
+                    l.kind === "sys"
+                      ? `sys${l.warn ? " warn" : ""}`
+                      : `b ${l.kind === "me" ? "me" : "them"}`
+                  }
+                >
+                  {l.country && (
+                    <>
+                      <Flag code={l.country} round />{" "}
+                    </>
+                  )}
+                  {l.text}
+                </p>
+                {i === firstFromThem && sponsor && <SponsoredCard sponsor={sponsor} />}
+              </Fragment>
             ))}
           </div>
         </div>

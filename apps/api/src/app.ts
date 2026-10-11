@@ -5,7 +5,7 @@ import { rateLimit } from "express-rate-limit";
 import type { Router } from "express";
 import helmet from "helmet";
 import type { ErrorResponse, HealthResponse, SiteConfig, StatsResponse } from "@passerby/shared";
-import { iceServers, type Config } from "./config.js";
+import { adsConfig, iceServers, type Config } from "./config.js";
 import type { Health } from "./db.js";
 import type { Logger } from "./logger.js";
 
@@ -27,6 +27,35 @@ export interface AppDeps {
 
 const apiError = (code: string, message: string): ErrorResponse => ({ error: { code, message } });
 
+/** What Google's AdSense needs the page to allow (from Google's own guidance for content security policies). */
+const ADSENSE_SOURCES = {
+  script: [
+    "https://pagead2.googlesyndication.com",
+    "https://partner.googleadservices.com",
+    "https://tpc.googlesyndication.com",
+    "https://www.googletagservices.com",
+    "https://adservice.google.com",
+    "https://securepubads.g.doubleclick.net",
+  ],
+  frame: [
+    "https://googleads.g.doubleclick.net",
+    "https://tpc.googlesyndication.com",
+    "https://www.google.com",
+    "https://*.safeframe.googlesyndication.com",
+  ],
+  img: [
+    "https://pagead2.googlesyndication.com",
+    "https://tpc.googlesyndication.com",
+    "https://www.google.com",
+    "https://*.g.doubleclick.net",
+  ],
+  connect: [
+    "https://pagead2.googlesyndication.com",
+    "https://*.g.doubleclick.net",
+    "https://www.google.com",
+  ],
+};
+
 export function createApp({
   config,
   logger,
@@ -41,13 +70,21 @@ export function createApp({
   // Railway and most hosts sit behind one proxy. This makes req.ip the visitor, not the proxy.
   app.set("trust proxy", 1);
 
+  // AdSense can only run if the page lets Google's ad scripts, frames and pictures in. That is opened up only
+  // when AdSense is set up (a publisher ID is given and ads are switched on); otherwise the policy stays strict.
+  const adSense = config.ADS_ENABLED && Boolean(config.ADSENSE_CLIENT);
+  const google = adSense ? ADSENSE_SOURCES : null;
   app.use(
     helmet({
       contentSecurityPolicy: {
         useDefaults: true,
         directives: {
-          "connect-src": ["'self'", "ws:", "wss:"],
-          "style-src": ["'self'"],
+          "connect-src": ["'self'", "ws:", "wss:", ...(google?.connect ?? [])],
+          "script-src": ["'self'", ...(google?.script ?? [])],
+          "frame-src": ["'self'", ...(google?.frame ?? [])],
+          "img-src": ["'self'", "data:", ...(google?.img ?? [])],
+          // AdSense styles its box with an inline style, which a strict policy refuses.
+          "style-src": ["'self'", ...(google ? ["'unsafe-inline'"] : [])],
           "font-src": ["'self'"],
         },
       },
@@ -66,6 +103,13 @@ export function createApp({
       }
     });
     next();
+  });
+
+  // Tells ad buyers who is allowed to sell this site's ads. Only served when AdSense is set up.
+  app.get("/ads.txt", (_req, res) => {
+    if (!adSense || !config.ADSENSE_CLIENT) return void res.status(404).type("text/plain").send("");
+    const publisher = config.ADSENSE_CLIENT.replace(/^ca-/, "");
+    res.type("text/plain").send(`google.com, ${publisher}, DIRECT, f08c47fec0942fa0\n`);
   });
 
   app.get("/healthz", async (_req, res) => {
@@ -90,6 +134,9 @@ export function createApp({
       contact: config.CONTACT_EMAIL ?? null,
       accountLink: config.ACCOUNT_LINK,
       googleSignIn: Boolean(config.GOOGLE_CLIENT_ID),
+      ads: adsConfig(config),
+      plusFilters: config.PLUS_FILTERS,
+      plusCheckout: config.PLUS_CHECKOUT,
     };
     res.json(body);
   });

@@ -6,6 +6,8 @@ interface FakeUser {
   google: boolean;
   gender: "m" | "f" | null;
   createdAt: string;
+  /** Plus is active: no ads, and the filters are unlocked. */
+  plus?: boolean;
 }
 
 /** A stand-in for the account part of the server, remembering one account and who is signed in. */
@@ -38,6 +40,13 @@ export class FakeAccounts {
     return a;
   }
 
+  /** A signed-in account with Plus. */
+  static plusMember(name = "Pat", email = "pat@example.com") {
+    const a = FakeAccounts.signedInAs(name, email);
+    a.user!.plus = true;
+    return a;
+  }
+
   /** An account made through Google: no password, Google connected. */
   static googleOnly(name = "Riley", email = "riley@example.com") {
     const a = FakeAccounts.signedInAs(name, email);
@@ -55,6 +64,7 @@ export class FakeAccounts {
       hasPassword: u.password !== null,
       google: u.google,
       gender: u.gender,
+      plus: u.plus ?? false,
     };
   }
   private json(body: unknown, status = 200) {

@@ -33,6 +33,10 @@ interface Props {
   onGender(g: Prefs["gender"]): void;
   onSeek(s: Prefs["seek"]): void;
   onCountries(c: CountryCode[]): void;
+  /** Choosing a country or who to talk to needs Plus (or a rewarded unlock) right now. */
+  locked?: boolean;
+  /** Called instead of making the choice while locked: opens the Plus box. */
+  onLocked?(): void;
 }
 
 type Tab = "country" | "language" | "more";
@@ -77,6 +81,8 @@ export function FilterPopover({
   onGender,
   onSeek,
   onCountries,
+  locked = false,
+  onLocked,
 }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<Tab>("country");
@@ -89,13 +95,16 @@ export function FilterPopover({
   // Close on Escape or on a press anywhere outside.
   useEffect(() => {
     if (!open) return;
+    // The Plus box sits on top of this panel: its clicks and its Escape are not ours.
+    const plusBoxOpen = () => document.querySelector("[data-plus-modal]") !== null;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && !plusBoxOpen()) {
         e.preventDefault();
         onOpen(false);
       }
     };
     const onDown = (e: MouseEvent) => {
+      if (plusBoxOpen()) return;
       if (root.current && !root.current.contains(e.target as Node)) onOpen(false);
     };
     document.addEventListener("keydown", onKey);
@@ -115,6 +124,7 @@ export function FilterPopover({
   };
 
   const pickCountry = (code: CountryCode) => {
+    if (locked) return onLocked?.();
     const has = prefs.countries.includes(code);
     if (multiple || (has && prefs.countries.length > 1)) {
       if (has) onCountries(prefs.countries.filter((c) => c !== code));
@@ -215,6 +225,11 @@ export function FilterPopover({
                 onClick={() => setTab(t.id)}
               >
                 {t.label}
+                {locked && t.id === "country" && (
+                  <span className="lock-badge" aria-label="needs Plus">
+                    ✦
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -294,7 +309,8 @@ export function FilterPopover({
                 onTags={onTags}
                 onLang={onLang}
                 onGender={onGender}
-                onSeek={onSeek}
+                onSeek={(s) => (locked && s ? onLocked?.() : onSeek(s))}
+                lockSeek={locked}
                 hideLanguage
               />
             )}

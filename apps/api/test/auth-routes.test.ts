@@ -124,6 +124,7 @@ describe("creating an account", () => {
       "google",
       "hasPassword",
       "name",
+      "plus",
     ]);
   });
 

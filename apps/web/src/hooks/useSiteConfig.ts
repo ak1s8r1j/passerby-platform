@@ -9,6 +9,17 @@ export const FALLBACK_CONFIG: SiteConfig = {
   contact: null,
   accountLink: false,
   googleSignIn: false,
+  // No ads until the server says they are on, so nobody sees a flash of an ad that then goes away.
+  ads: {
+    enabled: false,
+    client: null,
+    slots: { profile: null, landing: null },
+    sponsors: [],
+    rewarded: "none",
+    refreshSeconds: 0,
+  },
+  plusFilters: false,
+  plusCheckout: false,
 };
 
 let cached: Promise<SiteConfig> | null = null;

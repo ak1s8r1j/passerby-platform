@@ -1,11 +1,57 @@
 import { z } from "zod";
-import type { IceServer } from "@passerby/shared";
+import { Sponsor, type AdsConfig, type IceServer } from "@passerby/shared";
 
 /** A setting left blank in .env (`TURN_URL=`) means "not set", not an empty value. */
 const optional = <T extends z.ZodType>(schema: T) =>
   z.preprocess((v) => (v === "" ? undefined : v), schema.optional());
 
 const PLACEHOLDER_SECRET = "change-me-to-a-long-random-string";
+
+/** "true" or "false"; left blank means the default. */
+const flag = (fallback: boolean) =>
+  z
+    .preprocess(
+      (v) => (v === "" ? undefined : v),
+      z.enum(["true", "false"]).default(fallback ? "true" : "false"),
+    )
+    .transform((v) => v === "true");
+
+/** Sponsor cards as JSON in one setting. A bad list stops the server with a clear message. */
+const sponsorList = z
+  .preprocess((v) => (v === "" ? undefined : v), z.string().optional())
+  .transform((text, ctx) => {
+    if (text === undefined) return [];
+    let data: unknown;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      ctx.addIssue({ code: "custom", message: "ADS_SPONSORS must be a JSON list" });
+      return z.NEVER;
+    }
+    const parsed = z.array(Sponsor).max(10).safeParse(data);
+    if (!parsed.success) {
+      ctx.addIssue({
+        code: "custom",
+        message: `ADS_SPONSORS: ${parsed.error.issues[0]?.path.join(".") ?? ""} ${parsed.error.issues[0]?.message ?? "is not valid"}`,
+      });
+      return z.NEVER;
+    }
+    // Pictures load from this site only, and links must be https: refuse anything else here, not in the page.
+    for (const s of parsed.data) {
+      if (!/^(\/[\w./-]+|data:image\/(png|jpeg|webp|gif|svg\+xml)[;,].*)$/.test(s.logo)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `ADS_SPONSORS: logo for "${s.id}" must be a path on this site ("/sponsors/x.png") or a data:image URL`,
+        });
+        return z.NEVER;
+      }
+      if (!s.url.startsWith("https://")) {
+        ctx.addIssue({ code: "custom", message: `ADS_SPONSORS: link for "${s.id}" must be https` });
+        return z.NEVER;
+      }
+    }
+    return parsed.data;
+  });
 
 const EnvSchema = z
   .object({
@@ -63,6 +109,39 @@ const EnvSchema = z
     TURN_PASS: optional(z.string()),
     /** Folder with the built web app. When set, the API serves it too (production). */
     WEB_DIST: optional(z.string()),
+    /** The one switch for ads: "false" removes every ad, sponsor card and rewarded ad. */
+    ADS_ENABLED: flag(true),
+    /** The AdSense publisher ID, like ca-pub-1234567890123456. Without it no AdSense unit is drawn. */
+    ADSENSE_CLIENT: optional(
+      z.string().regex(/^ca-pub-\d{8,20}$/, "ADSENSE_CLIENT looks like ca-pub-1234567890123456"),
+    ),
+    /** AdSense ad unit IDs (numbers), made in the AdSense console. A place without one shows nothing. */
+    ADSENSE_SLOT_PROFILE: optional(
+      z.string().regex(/^\d{6,20}$/, "an AdSense ad unit ID is a number"),
+    ),
+    ADSENSE_SLOT_LANDING: optional(
+      z.string().regex(/^\d{6,20}$/, "an AdSense ad unit ID is a number"),
+    ),
+    /** Sponsor cards for the text chat, as a JSON list of {id, name, logo, headline, cta, url}. */
+    ADS_SPONSORS: sponsorList,
+    /** The rewarded video ad provider. "none" hides the button. "demo" is a stand-in for trying the flow. */
+    REWARDED_ADS: z.preprocess(
+      (v) => (v === "" ? undefined : v),
+      z.enum(["none", "demo"]).default("none"),
+    ),
+    /** Seconds between profile banner refreshes (60 or more), or 0 for never. AdSense does not allow refreshing. */
+    ADS_REFRESH_SECONDS: z.preprocess(
+      (v) => (v === "" ? undefined : v),
+      z.coerce
+        .number()
+        .int()
+        .refine((n) => n === 0 || (n >= 60 && n <= 3600), "use 0, or 60 to 3600")
+        .default(0),
+    ),
+    /** Make country and who-to-talk-to Plus features (or unlockable with a rewarded ad). Off: they stay free. */
+    PLUS_FILTERS: flag(false),
+    /** Plus can be bought. Leave off until payments are connected. */
+    PLUS_CHECKOUT: flag(false),
   })
   .refine((env) => Boolean(env.GOOGLE_CLIENT_ID) === Boolean(env.GOOGLE_CLIENT_SECRET), {
     message: "set both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, or neither",
@@ -84,6 +163,42 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     throw new Error("Invalid settings:\n  SESSION_SECRET: set a real secret in production");
   }
   return parsed.data;
+}
+
+/** The ads part of what the browser is told. Nothing is shown when the master switch is off. */
+export function adsConfig(
+  config: Pick<
+    Config,
+    | "ADS_ENABLED"
+    | "ADSENSE_CLIENT"
+    | "ADSENSE_SLOT_PROFILE"
+    | "ADSENSE_SLOT_LANDING"
+    | "ADS_SPONSORS"
+    | "REWARDED_ADS"
+    | "ADS_REFRESH_SECONDS"
+  >,
+): AdsConfig {
+  if (!config.ADS_ENABLED) {
+    return {
+      enabled: false,
+      client: null,
+      slots: { profile: null, landing: null },
+      sponsors: [],
+      rewarded: "none",
+      refreshSeconds: 0,
+    };
+  }
+  return {
+    enabled: true,
+    client: config.ADSENSE_CLIENT ?? null,
+    slots: {
+      profile: config.ADSENSE_SLOT_PROFILE ?? null,
+      landing: config.ADSENSE_SLOT_LANDING ?? null,
+    },
+    sponsors: config.ADS_SPONSORS,
+    rewarded: config.REWARDED_ADS,
+    refreshSeconds: config.ADS_REFRESH_SECONDS,
+  };
 }
 
 /** Google's free STUN server helps two browsers find their public addresses. */

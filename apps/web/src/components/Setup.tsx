@@ -27,6 +27,8 @@ interface Props extends Prefs {
   onSeek(seek: "m" | "f" | ""): void;
   /** The language choice lives in its own tab where the filters are shown as tabs. */
   hideLanguage?: boolean;
+  /** Choosing who to talk to needs Plus right now (the choice is handled by onSeek). */
+  lockSeek?: boolean;
 }
 
 /** What the visitor wants to talk about, their language, and whether they say what they are. */
@@ -40,6 +42,7 @@ export function Setup({
   onGender,
   onSeek,
   hideLanguage,
+  lockSeek = false,
 }: Props) {
   const [draft, setDraft] = useState("");
 
@@ -101,7 +104,14 @@ export function Setup({
       )}
       <div className="three">
         <div>
-          <label htmlFor="seek">Talk to</label>
+          <label htmlFor="seek">
+            Talk to
+            {lockSeek && (
+              <span className="lock-badge" aria-label="needs Plus">
+                ✦
+              </span>
+            )}
+          </label>
           <select id="seek" value={seek} onChange={(e) => onSeek(e.target.value as Prefs["seek"])}>
             <option value="">Both</option>
             <option value="m">Male</option>

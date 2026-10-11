@@ -1,6 +1,8 @@
 import { useState, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import { cleanTags, MAX_TAGS } from "@passerby/shared";
+import { AdSlot } from "../ads/AdSlot.js";
+import { adsenseRequested } from "../ads/adsense.js";
 import { usePageTitle } from "../hooks/usePageTitle.js";
 import { useSiteConfig } from "../hooks/useSiteConfig.js";
 import { useStoredState } from "../hooks/useStoredState.js";
@@ -115,7 +117,19 @@ export function Home() {
             />
           </div>
           {video && (
-            <Link className="home-btn solid" to="/video" aria-label="Video chat">
+            <Link
+              className="home-btn solid"
+              to="/video"
+              aria-label="Video chat"
+              onClick={(e) => {
+                // Google's ad script must not follow anyone into video chat, so after it has run on this page
+                // the way to video is a full page load, which leaves it behind.
+                if (adsenseRequested()) {
+                  e.preventDefault();
+                  window.location.assign("/video");
+                }
+              }}
+            >
               Video
             </Link>
           )}
@@ -158,6 +172,9 @@ export function Home() {
             </li>
           ))}
         </ul>
+        <div className="home-ad">
+          <AdSlot slot="landing" width={728} height={90} desktopOnly />
+        </div>
         <p className="home-note">Chats are moderated. Please keep it respectful.</p>
       </div>
     </section>
