@@ -711,12 +711,17 @@ details {
   left: 14px;
   bottom: 12px;
   z-index: 1;
-  color: rgb(255 255 255 / 0.9);
+  /* the logo's purple-to-pink, as lettering straight on the picture (no box behind it) */
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   font-family: var(--font-display);
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  text-shadow: 0 1px 3px rgb(0 0 0 / 0.7);
+  font-size: 1.7rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  filter: drop-shadow(0 1px 3px rgb(0 0 0 / 0.45));
   pointer-events: none;
   user-select: none;
 }
@@ -1250,10 +1255,11 @@ details {
     white-space: nowrap;
   }
   .chat.video .vmark {
-    top: 152px;
-    right: 16px;
+    top: 148px;
+    right: 14px;
     bottom: auto;
     left: auto;
+    font-size: 1.35rem;
   }
   .chat.video .origin {
     display: none;
