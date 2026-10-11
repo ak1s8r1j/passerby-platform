@@ -108,8 +108,11 @@ async def main():
                 break
         await a.wait_for_selector(".ttt-cell.win", timeout=8000)
         await a.screenshot(path=SHOTS + "games-ttt-win.png")
+        for pg in (a, b):  # the other browser hears a moment later
+            try: await pg.wait_for_function("() => /Tic-tac-toe: (You|They) won/.test(document.querySelector('[role=log]').innerText)", timeout=5000)
+            except Exception: pass
         ra, rb = await text(a, "[role=log]"), await text(b, "[role=log]")
-        ok("Tic-tac-toe: You won." in ra and "Tic-tac-toe: They won." in rb, "the winner and the loser are each told, in the conversation")
+        ok(("Tic-tac-toe: You won." in ra and "Tic-tac-toe: They won." in rb) or ("Tic-tac-toe: They won." in ra and "Tic-tac-toe: You won." in rb), "the winner and the loser are each told, in the conversation (whoever moved first)")
         await a.click(".game button:has-text('Close')"); await b.click(".game button:has-text('Close')")
 
         # ---- rock paper scissors ----
@@ -152,7 +155,11 @@ async def main():
             await a.wait_for_timeout(200)
         await a.wait_for_selector(".c4-cell.win", timeout=8000)
         await a.screenshot(path=SHOTS + "games-c4-win.png")
-        ok("Connect 4: You won." in await text(a, "[role=log]") and "Connect 4: They won." in await text(b, "[role=log]"), "connect 4 finds four in a column and tells each person the result")
+        for pg in (a, b):
+            try: await pg.wait_for_function("() => /Connect 4: (You|They) won/.test(document.querySelector('[role=log]').innerText)", timeout=5000)
+            except Exception: pass
+        la, lb = await text(a, "[role=log]"), await text(b, "[role=log]")
+        ok(("Connect 4: You won." in la and "Connect 4: They won." in lb) or ("Connect 4: They won." in la and "Connect 4: You won." in lb), "connect 4 finds four in a column and tells each person the result")
         await a.click(".game button:has-text('Close')"); await b.click(".game button:has-text('Close')")
 
         # ---- trivia ----
@@ -230,7 +237,7 @@ async def main():
         await a.wait_for_selector(".game:has-text('Waiting for the stranger')")
         await b.wait_for_timeout(1200)
         ok(await b.locator(".game:has-text('wants to play')").count() == 0, "an invitation sent too soon is not delivered")
-        await a.click(".game button:has-text('Cancel')")
+        await a.click(".game button[aria-label='Cancel']")
 
         # ---- the chat ending clears the game ----
         await a.wait_for_timeout(15500)

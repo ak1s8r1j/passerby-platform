@@ -1,4 +1,12 @@
-import { useEffect, useReducer, useRef, useState, type FormEvent, type TouchEvent } from "react";
+import {
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+  type FormEvent,
+  type MouseEvent,
+  type TouchEvent,
+} from "react";
 import { Link } from "react-router-dom";
 import {
   cleanTags,
@@ -149,6 +157,8 @@ function Conversation({ mode, iceServers }: { mode: ChatMode; iceServers: IceSer
   const [reporting, setReporting] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [gamesOpen, setGamesOpen] = useState(false);
+  /** Phone video call: the conversation over the picture is hidden until the screen is tapped again. */
+  const [chatHidden, setChatHidden] = useState(false);
   /** Reactions rising over the chat right now. */
   const [floats, setFloats] = useState<Floating[]>([]);
   const floatId = useRef(0);
@@ -338,6 +348,29 @@ function Conversation({ mode, iceServers }: { mode: ChatMode; iceServers: IceSer
     if (up > 90 && Math.abs(t.clientX - from.x) < 60 && Date.now() - from.t < 700) void start();
   };
 
+  // A tap on the picture (or on the conversation itself) hides the conversation, and another tap brings it back.
+  // Buttons, the message box and open panels keep their own taps.
+  const tapScreen = (e: MouseEvent<HTMLElement>) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.closest(
+        "button, a, input, select, textarea, label, .bar, .reactions, .game, .filter-pop, .vdev",
+      )
+    )
+      return;
+    if (state.phase !== "chatting") return;
+    setChatHidden((hidden) => !hidden);
+  };
+
+  // Show the conversation again when the stranger says something, and at the end of a chat.
+  const lastLine = state.lines[state.lines.length - 1];
+  useEffect(() => {
+    if (lastLine?.kind === "them") setChatHidden(false);
+  }, [lastLine?.id, lastLine?.kind]);
+  useEffect(() => {
+    if (state.phase !== "chatting") setChatHidden(false);
+  }, [state.phase]);
+
   const stop = () => {
     send({ t: "stop" });
     game.reset();
@@ -418,11 +451,17 @@ function Conversation({ mode, iceServers }: { mode: ChatMode; iceServers: IceSer
           ? "Looking for someone…"
           : "");
 
-  const classes = ["chat", isVideo && "video", state.phase === "idle" && "idle"].filter(Boolean);
+  const classes = [
+    "chat",
+    isVideo && "video",
+    state.phase === "idle" && "idle",
+    chatHidden && "chat-hidden",
+  ].filter(Boolean);
 
   return (
     <section
       className={classes.join(" ")}
+      onClick={isVideo ? tapScreen : undefined}
       onTouchStart={isVideo ? swipeStart : undefined}
       onTouchEnd={isVideo ? swipeEnd : undefined}
     >
@@ -658,6 +697,11 @@ function Conversation({ mode, iceServers }: { mode: ChatMode; iceServers: IceSer
             </svg>
           </button>
         </form>
+        {isVideo && inChat && chatHidden && (
+          <p className="chat-hint" aria-hidden="true">
+            Tap the screen to show the chat
+          </p>
+        )}
         {isVideo && inChat && (
           <p className="swipe-hint" aria-hidden="true">
             ↑ swipe up to skip

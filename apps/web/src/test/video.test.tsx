@@ -464,3 +464,37 @@ describe("where the other person is from", () => {
     expect(screen.queryByLabelText("Connecting from")).toBeNull();
   });
 });
+
+describe("tapping the screen on a video call", () => {
+  const chat = () => document.querySelector(".chat") as HTMLElement;
+
+  it("hides the conversation on a tap, and shows it again on the next", async () => {
+    await startAndMatch(true);
+    expect(chat()).not.toHaveClass("chat-hidden");
+    await userEvent.click(remoteVideo());
+    expect(chat()).toHaveClass("chat-hidden");
+    await userEvent.click(remoteVideo());
+    expect(chat()).not.toHaveClass("chat-hidden");
+  });
+
+  it("leaves buttons and the message box alone", async () => {
+    await startAndMatch(true);
+    await userEvent.click(screen.getByRole("textbox", { name: "Message" }));
+    await userEvent.click(screen.getByRole("button", { name: "Games" }));
+    expect(chat()).not.toHaveClass("chat-hidden");
+  });
+
+  it("shows the conversation again when the stranger says something", async () => {
+    const server = await startAndMatch(true);
+    await userEvent.click(remoteVideo());
+    expect(chat()).toHaveClass("chat-hidden");
+    server.receive({ t: "msg", text: "hello there" });
+    await waitFor(() => expect(chat()).not.toHaveClass("chat-hidden"));
+  });
+
+  it("does nothing while no one is connected", async () => {
+    await openVideo();
+    await userEvent.click(remoteVideo());
+    expect(chat()).not.toHaveClass("chat-hidden");
+  });
+});

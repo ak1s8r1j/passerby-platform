@@ -156,6 +156,11 @@ async def main():
         ok(await m1.evaluate("getComputedStyle(document.querySelector('header.top')).display === 'none'"), "phone call: the site header steps aside so the picture fills the screen")
         ok(await m1.evaluate("(() => { const q = s => { const e = document.querySelector(s); return !!e && e.getBoundingClientRect().width > 0 && getComputedStyle(e).display !== 'none'; }; return q('.vclose') && q('.vwho') && q('.vrail .filter-pill') && q('.vrail .gamebtn') && q('.vrail .link.danger') && q('.swipe-hint') && !q('.bar .btn.ghost') && !q('.icebreakers'); })()"), "phone call: close button, who-pill, round Filters/Games/Report column and swipe hint are shown; Stop button and conversation chips are not")
         await asyncio.sleep(1.0); await m1.screenshot(path=SHOTS + "video-mobile-call.png")
+        await m1.mouse.click(180, 330)  # a tap on the picture hides the conversation, the next tap brings it back
+        ok(await m1.evaluate("document.querySelector('.chat').classList.contains('chat-hidden') && getComputedStyle(document.querySelector('.pane')).visibility === 'hidden'"), "phone call: tapping the screen hides the conversation")
+        await m1.screenshot(path=SHOTS + "video-mobile-chat-hidden.png")
+        await m1.mouse.click(180, 330)
+        ok(await m1.evaluate("!document.querySelector('.chat').classList.contains('chat-hidden') && getComputedStyle(document.querySelector('.pane')).visibility === 'visible'"), "and tapping again shows it")
 
         errs = [x for pg in (a, b, c, t, v, m1, m2) for x in pg.errors]
         ok(not errs, "no script or console errors" + (": " + "; ".join(errs[:3]) if errs else ""))

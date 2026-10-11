@@ -62,9 +62,7 @@ export function GamePanel(p: Props) {
             <GameArt game={state.game} mini /> Waiting for the stranger to join{" "}
             {GAMES[state.game].name}…
           </p>
-          <button type="button" className="btn ghost" onClick={p.onDecline}>
-            Cancel
-          </button>
+          <CloseButton onClick={p.onDecline} />
         </div>
       )}
       {state?.phase === "invited" && (
@@ -138,9 +136,7 @@ function Menu({ onPick, onCloseMenu }: Props) {
     <>
       <div className="game-row">
         <h3 className="game-title">Play a game</h3>
-        <button type="button" className="link" onClick={onCloseMenu}>
-          Cancel
-        </button>
+        <CloseButton onClick={onCloseMenu} />
       </div>
       <div className="game-menu">
         {GAME_IDS.map((id) => (
@@ -153,6 +149,23 @@ function Menu({ onPick, onCloseMenu }: Props) {
       </div>
       <p className="hint">The stranger can say no, and nothing is saved.</p>
     </>
+  );
+}
+
+/** A small round X. It is named "Cancel" for screen readers and tests. */
+function CloseButton({ onClick }: { onClick(): void }) {
+  return (
+    <button type="button" className="xbtn" aria-label="Cancel" onClick={onClick}>
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path
+          d="M6 6l12 12M18 6L6 18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.6"
+          strokeLinecap="round"
+        />
+      </svg>
+    </button>
   );
 }
 
