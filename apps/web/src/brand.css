@@ -1229,6 +1229,10 @@ details {
   .chat.video .col > * {
     pointer-events: auto;
   }
+  /* the reactions layer covers the whole card and must never catch a tap meant for the buttons */
+  .chat.video .col > .float-layer {
+    pointer-events: none;
+  }
   .chat.video .status {
     margin-right: 116px;
     padding: 12px 0 0 12px;

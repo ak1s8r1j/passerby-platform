@@ -149,6 +149,7 @@ async def main():
         # phone layout
         m1 = await open_chat(br, vp=(375, 720)); m2 = await open_chat(br, vp=(375, 720))
         await m1.screenshot(path=SHOTS + "video-mobile-idle.png")
+        ok(await m1.evaluate("(() => { const b = document.querySelector('.bar .btn.go').getBoundingClientRect(); const e = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2); return e && e.closest('.btn.go') !== null; })()"), "phone: nothing covers the Start button, so a tap reaches it")
         await m1.click(".bar .btn.go"); await m2.click(".bar .btn.go")
         await playing(m1, timeout=40000)
         ok(await m1.evaluate("document.documentElement.scrollWidth <= innerWidth"), "phone width: no sideways scroll during a video call")
