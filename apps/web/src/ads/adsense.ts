@@ -9,8 +9,10 @@ const SCRIPT_TIMEOUT_MS = 10_000;
 
 let loading: Promise<void> | null = null;
 
-/** Whether Google's ad script has been asked for on this page. */
-export const adsenseRequested = () => loading !== null;
+const SCRIPT = 'script[src*="pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]';
+
+/** Whether Google's ad script is on this page: asked for by a slot, or already in the page's own HTML. */
+export const adsenseRequested = () => loading !== null || document.querySelector(SCRIPT) !== null;
 
 /**
  * Load Google's ad script once, only when a slot is about to be seen. It is never part of the page's own
@@ -18,6 +20,13 @@ export const adsenseRequested = () => loading !== null;
  */
 export function loadAdSense(client: string): Promise<void> {
   if (loading) return loading;
+  // The server put the tag in the page: don't add a second one (Google refuses to load twice). Asks made
+  // before it has loaded are queued by Google's own array and filled when it arrives; if it never comes
+  // (blocked), the slot's own give-up timer collapses the box.
+  if (document.querySelector(SCRIPT)) {
+    loading = Promise.resolve();
+    return loading;
+  }
   const attempt = new Promise<void>((resolve, reject) => {
     const script = document.createElement("script");
     script.async = true;

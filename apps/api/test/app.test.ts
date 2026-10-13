@@ -146,7 +146,10 @@ describe("errors and headers", () => {
 describe("serving the built web app", () => {
   const dist = mkdtempSync(join(tmpdir(), "passerby-web-"));
   mkdirSync(join(dist, "assets"));
-  writeFileSync(join(dist, "index.html"), "<!doctype html><title>shell</title>");
+  writeFileSync(
+    join(dist, "index.html"),
+    "<!doctype html><html><head><title>shell</title></head><body></body></html>",
+  );
   writeFileSync(join(dist, "assets", "app-abc123.js"), "console.log(1)");
   // A relative path, the way someone would type it in a setting.
   const app = createApp({
@@ -179,6 +182,46 @@ describe("serving the built web app", () => {
     const res = await request(app).get("/assets/app-abc123.js");
     expect(res.status).toBe(200);
     expect(res.headers["cache-control"]).toContain("immutable");
+  });
+
+  it("puts Google's ad script in the page itself, except in video chat and the admin area", async () => {
+    const withAds = createApp({
+      config: testConfig({
+        WEB_DIST: relative(process.cwd(), dist),
+        ADSENSE_CLIENT: "ca-pub-1138895012480462",
+      }),
+      logger: silent,
+      health: { ping: async () => true },
+      online: () => 0,
+    });
+    const tag =
+      "pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1138895012480462";
+    for (const path of ["/", "/text", "/account", "/rules"]) {
+      expect((await request(withAds).get(path)).text, path).toContain(tag);
+    }
+    for (const path of ["/video", "/video/", "/admin", "/admin/reports"]) {
+      expect((await request(withAds).get(path)).text, path).not.toContain("googlesyndication");
+    }
+    // the tag is inside the head, and the page is otherwise untouched
+    const home = (await request(withAds).get("/")).text;
+    expect(home.indexOf(tag)).toBeLessThan(home.indexOf("</head>"));
+    expect(home).toContain("<title>shell</title>");
+  });
+
+  it("leaves the page plain when AdSense is not set up or ads are off", async () => {
+    const cases: Record<string, string>[] = [
+      {},
+      { ADSENSE_CLIENT: "ca-pub-1138895012480462", ADS_ENABLED: "false" },
+    ];
+    for (const over of cases) {
+      const plain = createApp({
+        config: testConfig({ WEB_DIST: relative(process.cwd(), dist), ...over }),
+        logger: silent,
+        health: { ping: async () => true },
+        online: () => 0,
+      });
+      expect((await request(plain).get("/")).text).not.toContain("googlesyndication");
+    }
   });
 
   it("never answers API or health paths with the app shell", async () => {

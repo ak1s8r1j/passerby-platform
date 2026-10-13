@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import express, { type ErrorRequestHandler, type Express } from "express";
 import { rateLimit } from "express-rate-limit";
@@ -156,12 +156,28 @@ export function createApp({
       express.static(join(dist, "assets"), { immutable: true, maxAge: "1y", fallthrough: false }),
     );
     app.use(express.static(dist, { index: false, maxAge: "5m" }));
+    // With AdSense set up, the page itself carries Google's script tag, so Google's crawler (which does not run
+    // the site's own code) can find it when it verifies ownership. Video chat and the admin area get the plain
+    // page: nothing from Google is ever part of them.
+    const shell = readFileSync(join(dist, "index.html"), "utf8");
+    const withAdSense =
+      adSense && config.ADSENSE_CLIENT
+        ? shell.replace(
+            "</head>",
+            `    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${config.ADSENSE_CLIENT}" crossorigin="anonymous"></script>\n  </head>`,
+          )
+        : shell;
+    const adFree = (path: string) =>
+      path === "/video" ||
+      path.startsWith("/video/") ||
+      path === "/admin" ||
+      path.startsWith("/admin/");
     app.get(/^(?!\/(api|ws)\b).*/, (req, res) => {
       // The admin pages are for the owner alone: keep them out of search engines.
       if (req.path === "/admin" || req.path.startsWith("/admin/")) {
         res.setHeader("x-robots-tag", "noindex, nofollow");
       }
-      res.sendFile(join(dist, "index.html"));
+      res.type("html").send(adFree(req.path) ? shell : withAdSense);
     });
   }
 

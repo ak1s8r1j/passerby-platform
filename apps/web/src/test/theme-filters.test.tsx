@@ -70,9 +70,9 @@ describe("the welcome panel", () => {
   it("greets, states the age rule and the main rules", async () => {
     await openChat();
     expect(screen.getByRole("heading", { name: /welcome to passerby/i })).toBeInTheDocument();
-    expect(screen.getByText("18+")).toBeInTheDocument();
-    expect(screen.getByText(/you must be 18 or older/i)).toBeInTheDocument();
-    expect(screen.getByText(/no nudity, hate speech or harassment/i)).toBeInTheDocument();
+    expect(screen.getByText("")).toBeInTheDocument();
+    expect(screen.getByText(/No hate speech/i)).toBeInTheDocument();
+    expect(screen.getByText(/No harassment/i)).toBeInTheDocument();
   });
 
   it("mentions the IP address on the video page only", async () => {

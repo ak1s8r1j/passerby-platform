@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -67,6 +67,9 @@ beforeEach(() => {
   setDesktop(true);
 });
 afterEach(() => {
+  // Unmount first, while the script spy is still in place, so a late render can't add a real tag.
+  cleanup();
+  document.head.querySelectorAll('script[src*="adsbygoogle"]').forEach((el) => el.remove());
   vi.restoreAllMocks();
   vi.useRealTimers();
   vi.unstubAllGlobals();
@@ -131,6 +134,18 @@ describe("the ad slot", () => {
     expect(window.adsbygoogle).toHaveLength(0);
     loadScript();
     await waitFor(() => expect(window.adsbygoogle).toHaveLength(1));
+  });
+
+  it("does not add a second script when the page already carries Google's tag", async () => {
+    const tag = document.createElement("script");
+    tag.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=" + CLIENT;
+    document.head.append(tag);
+    stubApi({ config: withAds() });
+    renderAt("/");
+    await waitFor(() => expect(adBoxes()).toHaveLength(1));
+    await waitFor(() => expect(window.adsbygoogle).toHaveLength(1));
+    expect(scripts).toHaveLength(0);
+    tag.remove();
   });
 
   it("opens the Plus box from the remove ads link", async () => {
